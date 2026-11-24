@@ -50,10 +50,10 @@ if ($action === 'logout') {
 
 if (!isDbConnected()) {
     jsonResponse([
-        'status' => 'error',
+        'status' => 'fallback',
         'db_connected' => false,
-        'message' => 'MySQL database is offline. Start XAMPP MySQL to use Register/Login.'
-    ], 503);
+        'message' => 'Using browser storage fallback for user accounts.'
+    ]);
 }
 
 try {

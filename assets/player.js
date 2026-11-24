@@ -206,10 +206,25 @@
     });
   }
 
+  function getLocalStorageScope() {
+    if (state.currentUser && state.currentUser.username) {
+      return 'user_' + String(state.currentUser.username).trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    }
+    return 'guest';
+  }
+
+  function getPlaylistsStorageKey() {
+    return `apollo_playlists_${getLocalStorageScope()}`;
+  }
+
+  function getPlaylistTracksStorageKey(playlistId) {
+    return `apollo_pl_${getLocalStorageScope()}_${playlistId}_tracks`;
+  }
+
   function savePlaylistsToLocalStorage() {
     if (state.dbConnected) return;
     try {
-      localStorage.setItem('apollo_playlists', JSON.stringify(state.playlists));
+      localStorage.setItem(getPlaylistsStorageKey(), JSON.stringify(state.playlists));
     } catch (e) {}
   }
 
@@ -223,6 +238,23 @@
         localStorage.removeItem('apollo_recent_artists');
         localStorage.setItem('apollo_playlists', JSON.stringify([]));
         localStorage.setItem('apollo_clean_v4', 'true');
+      }
+
+      // Restore local browser account session when running serverless (without MySQL)
+      if (!state.currentUser) {
+        const savedSession = localStorage.getItem('apollo_local_session');
+        if (savedSession) {
+          const parsedUser = JSON.parse(savedSession);
+          if (parsedUser && parsedUser.username) {
+            state.currentUser = parsedUser;
+          }
+        }
+      }
+
+      // Migrate legacy unscoped guest playlists once if present
+      const legacyPlaylists = localStorage.getItem('apollo_playlists');
+      if (legacyPlaylists && !localStorage.getItem('apollo_playlists_guest')) {
+        localStorage.setItem('apollo_playlists_guest', legacyPlaylists);
       }
 
       const savedTracks = localStorage.getItem('apollo_recent_tracks');
@@ -294,7 +326,8 @@
     }
 
     try {
-      const local = localStorage.getItem(`apollo_pl_${playlistId}_tracks`);
+      const local = localStorage.getItem(getPlaylistTracksStorageKey(playlistId))
+        || (getLocalStorageScope() === 'guest' ? localStorage.getItem(`apollo_pl_${playlistId}_tracks`) : null);
       if (local) {
         const parsed = JSON.parse(local);
         if (Array.isArray(parsed)) return parsed;
@@ -304,7 +337,7 @@
   }
 
   /**
-   * Hybrid Playlist Management (MySQL XAMPP + LocalStorage)
+   * Hybrid Playlist Management (MySQL XAMPP + Scoped LocalStorage on Vercel)
    */
   async function loadPlaylists() {
     let loadedFromDb = false;
@@ -328,23 +361,25 @@
 
     if (!loadedFromDb) {
       state.dbConnected = false;
+      const plKey = getPlaylistsStorageKey();
       try {
-        const local = localStorage.getItem('apollo_playlists');
+        const local = localStorage.getItem(plKey);
         if (local) {
           state.playlists = JSON.parse(local);
         } else {
           state.playlists = [...DEFAULT_PLAYLISTS];
-          localStorage.setItem('apollo_playlists', JSON.stringify(state.playlists));
+          localStorage.setItem(plKey, JSON.stringify(state.playlists));
         }
       } catch (e) {
         state.playlists = [...DEFAULT_PLAYLISTS];
       }
 
-      // Sync track counts & cover art from localStorage tracks
+      // Sync track counts & cover art from scoped localStorage tracks
       state.playlists = state.playlists.map(pl => {
         let plTracks = [];
         try {
-          const raw = localStorage.getItem(`apollo_pl_${pl.id}_tracks`);
+          const raw = localStorage.getItem(getPlaylistTracksStorageKey(pl.id))
+            || (getLocalStorageScope() === 'guest' ? localStorage.getItem(`apollo_pl_${pl.id}_tracks`) : null);
           if (raw) plTracks = JSON.parse(raw) || [];
         } catch (e) {}
         const lastWithThumb = [...plTracks].reverse().find(t => t && t.thumbnail);
@@ -528,7 +563,7 @@
       }
     } else {
       try {
-        localStorage.removeItem(`apollo_pl_${targetPl.id}_tracks`);
+        localStorage.removeItem(getPlaylistTracksStorageKey(targetPl.id));
       } catch (e) {}
     }
 
@@ -595,7 +630,7 @@
     }
 
     // LocalStorage fallback
-    const storageKey = `apollo_pl_${playlistId}_tracks`;
+    const storageKey = getPlaylistTracksStorageKey(playlistId);
     let tracks = [];
     try {
       const existing = localStorage.getItem(storageKey);
@@ -651,7 +686,7 @@
         });
       } catch (e) {}
     } else {
-      const storageKey = `apollo_pl_${playlistId}_tracks`;
+      const storageKey = getPlaylistTracksStorageKey(playlistId);
       try {
         const raw = localStorage.getItem(storageKey);
         if (raw) {
@@ -2005,8 +2040,10 @@
             body: JSON.stringify({ identity, password })
           });
           const data = await res.json();
+
           if (data.status === 'ok' && data.user) {
             state.currentUser = data.user;
+            try { localStorage.setItem('apollo_local_session', JSON.stringify(data.user)); } catch (err) {}
             state.activePlaylist = null;
             updateHeaderAuthUI();
             if (DOM.loginPassword) DOM.loginPassword.value = '';
@@ -2014,9 +2051,38 @@
             await loadPlaylists();
             if (state.currentView === 'library') openLibraryHome();
             showToast(`WELCOME, ${data.user.username.toUpperCase()} · ACCOUNT ACTIVE`);
-          } else {
-            showAuthAlert(data.message || 'Login failed.');
+            return;
           }
+
+          // Browser localStorage fallback when running on Vercel without Cloud MySQL
+          if (data.status === 'fallback') {
+            let localUsers = [];
+            try {
+              localUsers = JSON.parse(localStorage.getItem('apollo_local_users') || '[]') || [];
+            } catch (err) {}
+            const found = localUsers.find(u =>
+              (String(u.username || '').toLowerCase() === identity.toLowerCase() ||
+               String(u.email || '').toLowerCase() === identity.toLowerCase()) &&
+              u.password === password
+            );
+            if (!found) {
+              showAuthAlert('Username/email atau password salah (atau belum Register di perangkat ini).');
+              return;
+            }
+            const sessionUser = { id: found.id, username: found.username, email: found.email };
+            state.currentUser = sessionUser;
+            try { localStorage.setItem('apollo_local_session', JSON.stringify(sessionUser)); } catch (err) {}
+            state.activePlaylist = null;
+            updateHeaderAuthUI();
+            if (DOM.loginPassword) DOM.loginPassword.value = '';
+            closeAuthModal();
+            await loadPlaylists();
+            if (state.currentView === 'library') openLibraryHome();
+            showToast(`WELCOME, ${sessionUser.username.toUpperCase()} · ACCOUNT ACTIVE`);
+            return;
+          }
+
+          showAuthAlert(data.message || 'Login failed.');
         } catch (err) {
           showAuthAlert('Network error during login.');
         }
@@ -2037,8 +2103,10 @@
             body: JSON.stringify({ username, email, password })
           });
           const data = await res.json();
+
           if (data.status === 'ok' && data.user) {
             state.currentUser = data.user;
+            try { localStorage.setItem('apollo_local_session', JSON.stringify(data.user)); } catch (err) {}
             state.activePlaylist = null;
             updateHeaderAuthUI();
             if (DOM.regUsername) DOM.regUsername.value = '';
@@ -2048,9 +2116,53 @@
             await loadPlaylists();
             if (state.currentView === 'library') openLibraryHome();
             showToast(`ACCOUNT CREATED · WELCOME ${data.user.username.toUpperCase()}`);
-          } else {
-            showAuthAlert(data.message || 'Registration failed.');
+            return;
           }
+
+          // Browser localStorage fallback when running on Vercel without Cloud MySQL
+          if (data.status === 'fallback') {
+            if (username.length < 3) {
+              showAuthAlert('Username minimal 3 karakter.');
+              return;
+            }
+            if (password.length < 4) {
+              showAuthAlert('Password minimal 4 karakter.');
+              return;
+            }
+            let localUsers = [];
+            try {
+              localUsers = JSON.parse(localStorage.getItem('apollo_local_users') || '[]') || [];
+            } catch (err) {}
+            const exists = localUsers.some(u =>
+              String(u.username || '').toLowerCase() === username.toLowerCase() ||
+              String(u.email || '').toLowerCase() === email.toLowerCase()
+            );
+            if (exists) {
+              showAuthAlert('Username atau email sudah terdaftar di browser ini, silakan Login.');
+              return;
+            }
+            const newUserRecord = { id: Date.now(), username, email: email.toLowerCase(), password };
+            localUsers.push(newUserRecord);
+            const sessionUser = { id: newUserRecord.id, username, email: email.toLowerCase() };
+            try {
+              localStorage.setItem('apollo_local_users', JSON.stringify(localUsers));
+              localStorage.setItem('apollo_local_session', JSON.stringify(sessionUser));
+            } catch (err) {}
+
+            state.currentUser = sessionUser;
+            state.activePlaylist = null;
+            updateHeaderAuthUI();
+            if (DOM.regUsername) DOM.regUsername.value = '';
+            if (DOM.regEmail) DOM.regEmail.value = '';
+            if (DOM.regPassword) DOM.regPassword.value = '';
+            closeAuthModal();
+            await loadPlaylists();
+            if (state.currentView === 'library') openLibraryHome();
+            showToast(`ACCOUNT CREATED · WELCOME ${sessionUser.username.toUpperCase()}`);
+            return;
+          }
+
+          showAuthAlert(data.message || 'Registration failed.');
         } catch (err) {
           showAuthAlert('Network error during registration.');
         }
@@ -2061,6 +2173,9 @@
       DOM.btnLogout.addEventListener('click', async () => {
         try {
           await fetch('api/auth.php?action=logout', { method: 'POST' });
+        } catch (err) {}
+        try {
+          localStorage.removeItem('apollo_local_session');
         } catch (err) {}
         state.currentUser = null;
         state.activePlaylist = null;
