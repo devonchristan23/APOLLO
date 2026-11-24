@@ -1,7 +1,7 @@
 <?php
 /**
- * Apollo Minimalist Music Player - Database & Environment Configuration
- * Hybrid MySQL (XAMPP Ubuntu) + Serverless LocalStorage Fallback (Vercel)
+ * Apollo Minimalist Music Player - Native PHP Database & Session Configuration
+ * Pure PHP Native (PDO MySQL) for XAMPP / Apache / PHP Server
  */
 
 // Report errors cleanly in JSON APIs

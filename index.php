@@ -1,8 +1,7 @@
 <?php
 /**
- * APOLLO Minimalist Music Player
+ * APOLLO Minimalist Music Player (100% Full PHP Native & MySQL PDO)
  * Swiss Grid Typography & Industrial Braun Dieter Rams Audio Aesthetic
- * Compatible with XAMPP Ubuntu (/opt/lampp/htdocs/apollo) & Vercel Serverless
  */
 
 require_once __DIR__ . '/config/db.php';
