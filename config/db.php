@@ -84,6 +84,13 @@ function jsonResponse($data, $status = 200) {
  * Portable HTTP helper (uses cURL if enabled, falls back to PHP stream context)
  */
 function apolloHttpRequest($url, $method = 'GET', $headers = [], $body = null, $timeout = 5) {
+    $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+    $defaultHeaders = [
+        'Accept-Language: en-US,en;q=0.9',
+        'Cookie: SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AxGgJlbiACGgYIgJnPpwY; CONSENT=YES+cb.20210328-17-p0.en+FX+100'
+    ];
+    $mergedHeaders = array_merge($defaultHeaders, $headers);
+
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -93,23 +100,21 @@ function apolloHttpRequest($url, $method = 'GET', $headers = [], $body = null, $
         if (defined('CURL_IPRESOLVE_V4')) {
             curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
         }
-        curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36');
+        curl_setopt($ch, CURLOPT_USERAGENT, $ua);
         if (strtoupper($method) === 'POST') {
             curl_setopt($ch, CURLOPT_POST, true);
             if ($body !== null) {
                 curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
             }
         }
-        if (!empty($headers)) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-        }
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $mergedHeaders);
         $resp = curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
         return ['code' => $code, 'body' => $resp !== false ? $resp : ''];
     }
 
-    $headerLines = array_merge(['User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'], $headers);
+    $headerLines = array_merge(['User-Agent: ' . $ua], $mergedHeaders);
     $httpOpts = [
         'method' => strtoupper($method),
         'header' => implode("\r\n", $headerLines) . "\r\n",

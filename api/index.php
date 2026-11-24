@@ -7,6 +7,10 @@
 $apolloRoot = dirname(__DIR__);
 require_once $apolloRoot . '/config/db.php';
 header('Content-Type: text/html; charset=utf-8');
+$assetVer = substr((string)(getenv('VERCEL_GIT_COMMIT_SHA') ?: ''), 0, 8);
+if ($assetVer === '') {
+    $assetVer = (string)((@filemtime($apolloRoot . '/assets/player.js') ?: 0) + (@filemtime($apolloRoot . '/assets/style.css') ?: 0) ?: '20261125v4');
+}
 
 // Automatically record every visitor opening APOLLO in MySQL (visitor_logs)
 apolloTrackVisitor($_SERVER['REQUEST_URI'] ?? '/');
@@ -30,7 +34,7 @@ $initialUser = apolloGetCurrentUser();
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
 
   <!-- Apollo Stylesheet with Cache-Buster -->
-  <link rel="stylesheet" href="assets/style.css?v=<?= (@filemtime($apolloRoot . '/assets/style.css') ?: 1) ?>">
+  <link rel="stylesheet" href="assets/style.css?v=<?= htmlspecialchars($assetVer) ?>">
 </head>
 <body>
 
@@ -831,6 +835,6 @@ $initialUser = apolloGetCurrentUser();
   window.APOLLO_INITIAL_USER = <?= json_encode($initialUser, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 </script>
 <!-- Apollo Player Engine Script with Cache-Buster -->
-<script src="assets/player.js?v=<?= (@filemtime($apolloRoot . '/assets/player.js') ?: 1) ?>"></script>
+<script src="assets/player.js?v=<?= htmlspecialchars($assetVer) ?>"></script>
 </body>
 </html>

@@ -149,7 +149,7 @@ function getLiveYoutubeMusicRecommendations() {
         ];
         shuffle($artistSeeds);
 
-        foreach (array_slice($artistSeeds, 0, 4) as $seedArtist) {
+        foreach (array_slice($artistSeeds, 0, 2) as $seedArtist) {
             $seedPayload = json_encode([
                 'context' => [
                     'client' => [
@@ -171,7 +171,7 @@ function getLiveYoutubeMusicRecommendations() {
                     'Referer: https://music.youtube.com/'
                 ],
                 $seedPayload,
-                6
+                4
             );
             if ($seedResp['code'] === 200 && !empty($seedResp['body'])) {
                 $seedData = json_decode($seedResp['body'], true);
@@ -185,7 +185,7 @@ function getLiveYoutubeMusicRecommendations() {
                                 $seen[$parsed['video_id']] = true;
                                 $pool[] = $parsed;
                                 $perArtistCount++;
-                                if ($perArtistCount >= 6) break 2;
+                                if ($perArtistCount >= 8) break 2;
                             }
                         }
                     }
