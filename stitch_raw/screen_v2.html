@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;family=JetBrains+Mono:wght@100..900&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"surface-container-highest":"#353534","outline-variant":"#5c4037","surface":"#111111","surface-container":"#201f1f","on-error":"#690005","secondary":"#a8a7a5","secondary-fixed":"#e2e3df","on-surface-variant":"#e6beb2","on-primary-fixed":"#3a0b00","on-background":"#F4F4F0","inverse-primary":"#ad3300","inverse-on-surface":"#313030","surface-bright":"#3a3939","on-tertiary-container":"#2a2a2a","surface-dim":"#111111","on-primary-fixed-variant":"#842500","surface-tint":"#ffb59e","on-surface":"#F4F4F0","error":"#ffb4ab","tertiary":"#c8c6c5","tertiary-fixed":"#e4e2e1","primary-container":"#FF4F00","surface-container-lowest":"#0a0a0a","secondary-fixed-dim":"#c6c7c3","error-container":"#93000a","surface-variant":"#282828","on-primary":"#ffffff","on-secondary-fixed-variant":"#454745","surface-container-low":"#181818","background":"#111111","primary":"#ff8555","primary-fixed-dim":"#ffb59e","on-primary-container":"#ffffff","on-secondary-container":"#b8b9b5","outline":"#ac897e","on-tertiary-fixed":"#1b1c1c","on-error-container":"#ffdad6","primary-fixed":"#ffdbd0","on-tertiary":"#303030","tertiary-container":"#929090","surface-container-high":"#2a2a2a","on-secondary-fixed":"#1a1c1a","inverse-surface":"#F4F4F0","on-secondary":"#2f312e","tertiary-fixed-dim":"#c8c6c5","secondary-container":"#484947"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.375rem","full":"9999px"},"spacing":{"margin-tablet":"1.5rem","space-lg":"1.5rem","space-sm":"0.5rem","margin-desktop":"2.5rem","margin":"1rem","space-md":"1rem","space-xl":"2.5rem","space-xs":"0.25rem","gutter":"1rem","gutter-desktop":"1.5rem"},"fontFamily":{"headline-lg":["Inter"],"body-sm":["Inter"],"label-mono-lg":["JetBrains Mono"],"display-hero":["Inter"],"body-lg":["Inter"],"label-mono-sm":["JetBrains Mono"],"chassis-indicator":["Inter"],"headline-md":["Inter"],"headline-lg-mobile":["Inter"],"display-hero-mobile":["Inter"]},"fontSize":{"headline-lg":["32px",{"lineHeight":"38px","letterSpacing":"-0.02em","fontWeight":"500"}],"body-sm":["13px",{"lineHeight":"18px","letterSpacing":"0em","fontWeight":"400"}],"label-mono-lg":["14px",{"lineHeight":"18px","letterSpacing":"-0.01em","fontWeight":"500"}],"display-hero":["56px",{"lineHeight":"60px","letterSpacing":"-0.03em","fontWeight":"600"}],"body-lg":["16px",{"lineHeight":"24px","letterSpacing":"-0.005em","fontWeight":"400"}],"label-mono-sm":["11px",{"lineHeight":"14px","letterSpacing":"0.04em","fontWeight":"500"}],"chassis-indicator":["10px",{"lineHeight":"12px","letterSpacing":"0.08em","fontWeight":"600"}],"headline-md":["20px",{"lineHeight":"26px","letterSpacing":"-0.01em","fontWeight":"500"}],"headline-lg-mobile":["24px",{"lineHeight":"30px","letterSpacing":"-0.01em","fontWeight":"500"}],"display-hero-mobile":["36px",{"lineHeight":"40px","letterSpacing":"-0.02em","fontWeight":"600"}]}}}};</script></head><body class="bg-surface text-on-surface font-body-sm text-body-sm antialiased selection:bg-primary-container selection:text-white"><aside class="hidden md:flex fixed left-0 top-0 bottom-20 w-64 bg-surface-container-lowest flex-col z-40 border-r border-surface-container-highest"><div class="h-16 px-space-lg flex items-center justify-between border-b border-surface-container-highest"><div class="flex items-center gap-2"><span class="w-2.5 h-2.5 bg-primary-container"></span><span class="font-headline-md text-headline-md tracking-wider font-bold text-on-surface select-none">APOLLO</span></div><span class="font-label-mono-sm text-[10px] text-secondary tracking-widest uppercase">SYS 01</span></div><div class="flex-1 overflow-y-auto px-space-md py-space-md flex flex-col gap-space-lg"><nav class="flex flex-col gap-space-xs" id="sidebar-main-nav"><button class="flex items-center px-space-md py-space-sm rounded-none transition-colors bg-surface-container-high text-primary border-l-2 border-primary-container font-semibold w-full text-left" id="nav-btn-home" onclick="switchMainView('home')"><span class="material-symbols-outlined text-[18px] mr-2">home</span><span class="font-body-sm text-body-sm tracking-wide">Home</span></button><button class="flex items-center px-space-md py-space-sm rounded-none text-secondary hover:text-on-surface hover:bg-surface-container-low transition-colors w-full text-left" id="nav-btn-explore" onclick="scrollToGenres()"><span class="material-symbols-outlined text-[18px] mr-2">explore</span><span class="font-body-sm text-body-sm tracking-wide">Explore / Genres</span></button><button class="flex items-center px-space-md py-space-sm rounded-none text-secondary hover:text-on-surface hover:bg-surface-container-low transition-colors w-full text-left" id="nav-btn-library" onclick="openFirstPlaylist()"><span class="material-symbols-outlined text-[18px] mr-2">library_music</span><span class="font-body-sm text-body-sm tracking-wide">Library</span></button></nav><div class="pt-space-md border-t border-surface-container-highest flex flex-col gap-space-sm"><div class="px-space-md flex items-center justify-between"><span class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider text-secondary">USER PLAYLISTS</span><span class="font-label-mono-sm text-[10px] text-secondary" id="sidebar-playlist-count">04</span></div><nav class="flex flex-col gap-space-xs" id="sidebar-playlist-list"><a class="truncate px-space-md py-space-xs text-secondary hover:text-on-surface hover:bg-surface-container-low transition-colors font-body-sm text-body-sm flex items-center justify-between group" data-playlist-id="heavy-rotation" href="#" onclick="openPlaylistView('heavy-rotation'); return false;"><span class="truncate">Heavy Rotation</span><span class="font-label-mono-sm text-[10px] text-secondary opacity-0 group-hover:opacity-100">06</span></a><a class="truncate px-space-md py-space-xs text-secondary hover:text-on-surface hover:bg-surface-container-low transition-colors font-body-sm text-body-sm flex items-center justify-between group" data-playlist-id="minimal-wave-1982" href="#" onclick="openPlaylistView('minimal-wave-1982'); return false;"><span class="truncate">Minimal Wave 1982</span><span class="font-label-mono-sm text-[10px] text-secondary opacity-0 group-hover:opacity-100">04</span></a><a class="truncate px-space-md py-space-xs text-secondary hover:text-on-surface hover:bg-surface-container-low transition-colors font-body-sm text-body-sm flex items-center justify-between group" data-playlist-id="analog-synthetics" href="#" onclick="openPlaylistView('analog-synthetics'); return false;"><span class="truncate">Analog Synthetics</span><span class="font-label-mono-sm text-[10px] text-secondary opacity-0 group-hover:opacity-100">05</span></a><a class="truncate px-space-md py-space-xs text-secondary hover:text-on-surface hover:bg-surface-container-low transition-colors font-body-sm text-body-sm flex items-center justify-between group" data-playlist-id="studio-monitor-reference" href="#" onclick="openPlaylistView('studio-monitor-reference'); return false;"><span class="truncate">Studio Monitor Reference</span><span class="font-label-mono-sm text-[10px] text-secondary opacity-0 group-hover:opacity-100">04</span></a></nav><div class="px-space-md pt-space-xs"><button class="w-full text-left py-space-xs px-space-sm border border-dashed border-surface-container-highest text-secondary hover:text-on-surface hover:border-primary-container hover:bg-surface-container transition-colors font-chassis-indicator text-chassis-indicator uppercase tracking-wider flex items-center justify-between" onclick="createNewPlaylistModal()" type="button"><span>+ NEW PLAYLIST</span><span class="font-label-mono-sm text-primary text-[10px]">[ADD]</span></button></div></div></div></aside><div class="md:pl-64 flex flex-col min-h-screen"><header class="fixed top-0 right-0 left-0 md:left-64 h-16 bg-[#111111]/95 backdrop-blur-md z-30 border-b border-surface-container-highest flex items-center justify-between px-space-md md:px-space-lg"><div class="flex items-center gap-space-sm text-secondary font-label-mono-sm text-label-mono-sm"><span class="w-2 h-2 bg-primary-container inline-block animate-pulse"></span><span class="uppercase tracking-wider">AUDIO ENGINE: ACTIVE [44.1kHz / 24-BIT DIETER RAMS MATRIX]</span></div><div class="flex items-center gap-space-md"><div class="hidden sm:flex items-center gap-2 border border-surface-container-highest px-2 py-1 font-label-mono-sm text-[11px] text-secondary"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span><span>DIRECT STREAM · OPTICAL</span></div></div></header><main class="flex-1 pt-20 pb-32 md:pb-28 w-full px-space-md md:px-space-lg bg-surface"><div class="flex flex-col w-full text-on-surface max-w-7xl mx-auto">
+<!-- ==================== HOME / OVERVIEW VIEW ==================== -->
+<div class="flex flex-col w-full space-y-space-xl" id="view-home">
+<!-- 1. EXPANDED TACTILE SEARCH BAR -->
+<div class="w-full">
+<div class="relative w-full bg-surface-container-lowest border-2 border-surface-container-highest hover:border-secondary focus-within:border-primary-container transition-colors shadow-sm">
+<div class="flex items-center h-16 px-space-lg">
+<span class="material-symbols-outlined text-secondary text-[26px] mr-4 select-none">search</span>
+<input class="w-full bg-transparent text-on-surface font-body-lg text-[18px] placeholder:text-secondary focus:outline-none tracking-normal" id="global-search-input" oninput="filterCatalog(this.value)" placeholder="Search songs, artists, master albums, frequency profiles..." type="text"/>
+<div class="flex items-center gap-3 shrink-0">
+<span class="font-label-mono-sm text-[11px] text-secondary border border-surface-container-highest px-2 py-0.5 uppercase tracking-widest hidden sm:inline-block select-none">[ESC] CLEAR</span>
+</div>
+</div>
+</div>
+</div>
+<!-- 2. GENRE & MOOD TILES (Inspired by image_2 with Dieter Rams / Swiss industrial refinement) -->
+<section class="flex flex-col w-full" id="genres-section">
+<div class="flex items-end justify-between pb-space-xs border-b border-surface-container-highest">
+<div class="flex items-center gap-space-sm">
+<span class="w-2.5 h-2.5 bg-primary-container inline-block"></span>
+<h2 class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider text-secondary">
+          EXPLORE · MOOD &amp; GENRE FREQUENCIES
+        </h2>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary tracking-widest select-none">MODULE: MATRIX_GRID [08]</span>
+</div>
+<!-- Big Distinct Genre Tiles Grid -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-space-md pt-space-md">
+<!-- 1. Ambient & Chill -->
+<div class="group relative h-28 md:h-32 border border-surface-container-highest overflow-hidden cursor-pointer transition-all duration-200 hover:border-primary-container p-space-md flex flex-col justify-between" onclick="filterGenre('Ambient &amp; Chill')" style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);">
+<div class="z-10"><span class="font-label-mono-sm text-[10px] text-sky-400 tracking-wider uppercase block">FREQ 01</span><h3 class="font-headline-md text-[18px] md:text-[20px] font-semibold tracking-tight text-white group-hover:text-primary transition-colors">Ambient &amp; Chill</h3></div>
+<span class="z-10 font-label-mono-sm text-[11px] text-secondary group-hover:text-white transition-colors">Brian Eno, Stars of the Lid</span>
+<div class="absolute -right-2 -bottom-2 w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-white/10 shadow-2xl transform rotate-6 group-hover:rotate-0 group-hover:scale-105 transition-transform duration-300">
+<img alt="Hits Cafe ambient coffee music artwork" class="w-full h-full object-cover grayscale contrast-125 group-hover:grayscale-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAwx73DOXuSg35wRPJW43Ip7YA7CgHCmlv9LlDKgc7fql2XUaK5h14Ojx-vTYdRJNgbl9jEEkVeAUpbA_21WBDZw8e7jdBVJEnE_COz6D21_56ATJvdKBv6OaB0WJ6BO1s3M0ZoLjjfxUOJtav-gQidkK7iDViFDMZI60XIjCL1pkspwJgIgNN8IGUBTR8CHkyHQmEui89vtfjBjoadnlcJY5BveMFfi_0jXBdOLKM"/>
+</div>
+</div>
+<!-- 2. Electronic / Synthetics -->
+<div class="group relative h-28 md:h-32 border border-surface-container-highest overflow-hidden cursor-pointer transition-all duration-200 hover:border-primary-container p-space-md flex flex-col justify-between" onclick="filterGenre('Electronic / Synth')" style="background: linear-gradient(135deg, #78350f 0%, #451a03 100%);">
+<div class="z-10"><span class="font-label-mono-sm text-[10px] text-amber-400 tracking-wider uppercase block">FREQ 02</span><h3 class="font-headline-md text-[18px] md:text-[20px] font-semibold tracking-tight text-white group-hover:text-primary transition-colors">Electronic / Synth</h3></div>
+<span class="z-10 font-label-mono-sm text-[11px] text-secondary group-hover:text-white transition-colors">Kraftwerk, Daft Punk</span>
+<div class="absolute -right-2 -bottom-2 w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-white/10 shadow-2xl transform rotate-6 group-hover:rotate-0 group-hover:scale-105 transition-transform duration-300">
+<img alt="Electronic synthesizer module knob artwork" class="w-full h-full object-cover grayscale contrast-125 group-hover:grayscale-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBGZaGfPWCucs0PcGshjI9uAkBGj2F1wTb8Wax80bfR6W1UsZqMfFLj-eEg3BUTxir5KzQlx-TFmxwyQEwnFwEgDmg56KNKYUUGxqJy1236ifdjZgX4PiGNPwIrUyjVIha8-DFJqYbeY5a1AVUHhkNtVENpV8lOp2Kseeg3KINCMosI9txnqcVL_1KatJKiQKlnY_bBNvYXsDjgfh39idnyNDKT5wwDVarA8kYfS-k"/>
+</div>
+</div>
+<!-- 3. Minimalist / Classical -->
+<div class="group relative h-28 md:h-32 border border-surface-container-highest overflow-hidden cursor-pointer transition-all duration-200 hover:border-primary-container p-space-md flex flex-col justify-between" onclick="filterGenre('Classical / Minimalist')" style="background: linear-gradient(135deg, #14532d 0%, #052e16 100%);">
+<div class="z-10"><span class="font-label-mono-sm text-[10px] text-emerald-400 tracking-wider uppercase block">FREQ 03</span><h3 class="font-headline-md text-[18px] md:text-[20px] font-semibold tracking-tight text-white group-hover:text-primary transition-colors">Classical / Minimal</h3></div>
+<span class="z-10 font-label-mono-sm text-[11px] text-secondary group-hover:text-white transition-colors">Steve Reich, Philip Glass</span>
+<div class="absolute -right-2 -bottom-2 w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-white/10 shadow-2xl transform rotate-6 group-hover:rotate-0 group-hover:scale-105 transition-transform duration-300">
+<img alt="Classical grand piano keyboard sheet music" class="w-full h-full object-cover grayscale contrast-125 group-hover:grayscale-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAfPjCfKN0ld1nYtXKRARjC4Rm0_d47GsbW78AeO7mQF_utTt2VUsIay74XAHYxDC6k8dfhN_q0xUBj4pza7wokfF0RzWox1vF1DR6rOsjPHumEzTIAPuK-pkEtxk9vWqBGyn3JGLFYC_tzNr3ictfzABL0y6oPnaoe6K1CKYYFgStEgmBAstZKW_J89y-QiKWoBHBE6lhf9XeQKbpm69calDsTknvk54LtmkZ7DzU"/>
+</div>
+</div>
+<!-- 4. Deep Focus / Work -->
+<div class="group relative h-28 md:h-32 border border-surface-container-highest overflow-hidden cursor-pointer transition-all duration-200 hover:border-primary-container p-space-md flex flex-col justify-between" onclick="filterGenre('Deep Focus')" style="background: linear-gradient(135deg, #374151 0%, #1f2937 100%);">
+<div class="z-10"><span class="font-label-mono-sm text-[10px] text-gray-300 tracking-wider uppercase block">FREQ 04</span><h3 class="font-headline-md text-[18px] md:text-[20px] font-semibold tracking-tight text-white group-hover:text-primary transition-colors">Focus / Deep Work</h3></div>
+<span class="z-10 font-label-mono-sm text-[11px] text-secondary group-hover:text-white transition-colors">Lofi Loft, Tape Archives</span>
+<div class="absolute -right-2 -bottom-2 w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-white/10 shadow-2xl transform rotate-6 group-hover:rotate-0 group-hover:scale-105 transition-transform duration-300">
+<img alt="Vintage reel to reel tape recorder turntable" class="w-full h-full object-cover grayscale contrast-125 group-hover:grayscale-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGwYbeho20ZhlXe8aSvRLFf3GVl9qKjyrEDAOWH0IQbc3hhnv_5Qyi8nFOphodVNQcwTHkF_g7aQdPKiwJplqengS4DIXT0vIEfTAMOnX1iFB7mVrbxrRCIkHiF_wTHUqOjFHkPzsEJxB7H-6VPdgdLdkMWXPeJZk50PTJPBZ2BXfeVHcOFOxnLXOxIIzvG-zBzvByQJu0svoc5ZrXTR_Rq12G3SmnvfFdFvRS20o"/>
+</div>
+</div>
+<!-- 5. Alternative & Indie -->
+<div class="group relative h-28 md:h-32 border border-surface-container-highest overflow-hidden cursor-pointer transition-all duration-200 hover:border-primary-container p-space-md flex flex-col justify-between" onclick="filterGenre('Alternative &amp; Indie')" style="background: linear-gradient(135deg, #581c87 0%, #3b0764 100%);">
+<div class="z-10"><span class="font-label-mono-sm text-[10px] text-purple-300 tracking-wider uppercase block">FREQ 05</span><h3 class="font-headline-md text-[18px] md:text-[20px] font-semibold tracking-tight text-white group-hover:text-primary transition-colors">Alt &amp; Art Rock</h3></div>
+<span class="z-10 font-label-mono-sm text-[11px] text-secondary group-hover:text-white transition-colors">Radiohead, Massive Attack</span>
+<div class="absolute -right-2 -bottom-2 w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-white/10 shadow-2xl transform rotate-6 group-hover:rotate-0 group-hover:scale-105 transition-transform duration-300">
+<img alt="Indie electric guitar player stage shadows" class="w-full h-full object-cover grayscale contrast-125 group-hover:grayscale-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuByG9mFyqV0vIQtTOqrCsFGbhMrRFGBPgKeEZu8hvgl7m1zoNG8WLa_cKN0Ccra-5Xdzr45gagZsC9oLYvvpHCh7aKVZOWls7gVLB6nnetbt-2DaL5HRr6R7ry3_dyKrOCEXzUfdrudqoW25TQhb8q_glXk6_KbDoddkRuuysMUqIr39TnpU49-UvgBqc6Ovjf0Vx5RG0vkuYmWX5cqIkfhSVS1_Lsg-zXNL_LdHLE"/>
+</div>
+</div>
+<!-- 6. IDM & Glitch -->
+<div class="group relative h-28 md:h-32 border border-surface-container-highest overflow-hidden cursor-pointer transition-all duration-200 hover:border-primary-container p-space-md flex flex-col justify-between" onclick="filterGenre('IDM &amp; Glitch')" style="background: linear-gradient(135deg, #7c2d12 0%, #431407 100%);">
+<div class="z-10"><span class="font-label-mono-sm text-[10px] text-orange-400 tracking-wider uppercase block">FREQ 06</span><h3 class="font-headline-md text-[18px] md:text-[20px] font-semibold tracking-tight text-white group-hover:text-primary transition-colors">IDM &amp; Breakbeat</h3></div>
+<span class="z-10 font-label-mono-sm text-[11px] text-secondary group-hover:text-white transition-colors">Aphex Twin, Boards of Canada</span>
+<div class="absolute -right-2 -bottom-2 w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-white/10 shadow-2xl transform rotate-6 group-hover:rotate-0 group-hover:scale-105 transition-transform duration-300">
+<img alt="Abstract audio waveform oscilloscope display" class="w-full h-full object-cover grayscale contrast-125 group-hover:grayscale-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUq2I6YfuWx_phmldbOWu-kSKSi17Q7ZlV0XdIlCvQ6xZNjn4Y2ccRzWDbojMg1vqwH1jsVbvNMS5f_g4nxHeVkIB8fl0hDpT53Q_MXnfHf3S4671QWBnfn4EWb6hVH7SiK9XaaNnM0d6Y4cscbRuFoVFQglHsGY_RZuhXEz7qKhZ2ML4OQ9KAqwIwmp_w5fs-SFdZ7W7bFfPw-Tw2pK5OTu8jfap2tNSHPP9Rd-I"/>
+</div>
+</div>
+<!-- 7. Hip Hop & Beat Science -->
+<div class="group relative h-28 md:h-32 border border-surface-container-highest overflow-hidden cursor-pointer transition-all duration-200 hover:border-primary-container p-space-md flex flex-col justify-between" onclick="filterGenre('Hip Hop &amp; Beat Science')" style="background: linear-gradient(135deg, #831843 0%, #500724 100%);">
+<div class="z-10"><span class="font-label-mono-sm text-[10px] text-pink-400 tracking-wider uppercase block">FREQ 07</span><h3 class="font-headline-md text-[18px] md:text-[20px] font-semibold tracking-tight text-white group-hover:text-primary transition-colors">Beat Science</h3></div>
+<span class="z-10 font-label-mono-sm text-[11px] text-secondary group-hover:text-white transition-colors">J Dilla, Madlib, DJ Shadow</span>
+<div class="absolute -right-2 -bottom-2 w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-white/10 shadow-2xl transform rotate-6 group-hover:rotate-0 group-hover:scale-105 transition-transform duration-300">
+<img alt="Sampler drum machine pads studio" class="w-full h-full object-cover grayscale contrast-125 group-hover:grayscale-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5wp5Qd67WH-6mx58V9vALs8UNIvC5wRUe-aPtatsYegKXNROWDJA2Y2qorFbr1HC8PotH4FxTW54I6b5PAFggUmxmikHsmMxJhb7DPTb6eUO9IP-wV2oTkJ6Q9kV9NDUrcAEYCQrm0wji7mCNOR4PZBrxDozkj1rXRbE-9rI_Mivsbdy6Zdc0ODoVDWU8RGFIv65cWtIuvDhhJDRVqABZn9x7MP04u8QjYy2Puc4"/>
+</div>
+</div>
+<!-- 8. Night Drive / Commute -->
+<div class="group relative h-28 md:h-32 border border-surface-container-highest overflow-hidden cursor-pointer transition-all duration-200 hover:border-primary-container p-space-md flex flex-col justify-between" onclick="filterGenre('Night Drive / Commute')" style="background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);">
+<div class="z-10"><span class="font-label-mono-sm text-[10px] text-indigo-400 tracking-wider uppercase block">FREQ 08</span><h3 class="font-headline-md text-[18px] md:text-[20px] font-semibold tracking-tight text-white group-hover:text-primary transition-colors">Night Commute</h3></div>
+<span class="z-10 font-label-mono-sm text-[11px] text-secondary group-hover:text-white transition-colors">Kavinsky, Chromatics</span>
+<div class="absolute -right-2 -bottom-2 w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-white/10 shadow-2xl transform rotate-6 group-hover:rotate-0 group-hover:scale-105 transition-transform duration-300">
+<img alt="Neon highway dark night drive photography" class="w-full h-full object-cover grayscale contrast-125 group-hover:grayscale-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCThX585ltomrNFEDnwirXQXQ1MLMq1EGqRobeXyhaH_5JDXmCzRVqjZrfHl426gq9o5ljHuSnhlYsIdH79HqSi0qjENSoeEERUly5wWc5lBBs_J5kWb1ZaWyAF6v6OXMP2hn45d-NQVipjpg3jugSMhjs1S_vEgoFybwGfgPh1pd0ybHa7LW5bsLGNxBqwsa5jWkDmeUWazsuJLEefcTQ58xJwkbFYavANEcjlEKI"/>
+</div>
+</div>
+</div>
+</section>
+<!-- 3. RECENTLY PLAYED ARTISTS (Rekomendasi Artis yang Baru Didengarkan) -->
+<section class="flex flex-col w-full">
+<div class="flex items-end justify-between pb-space-xs border-b border-surface-container-highest">
+<div class="flex items-center gap-space-sm">
+<span class="w-2.5 h-2.5 bg-primary-container inline-block"></span>
+<h2 class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider text-secondary">
+          RECENTLY PLAYED ARTISTS · REKOMENDASI ARTIS
+        </h2>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary tracking-widest select-none">GRID: 04 UNITS</span>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-space-md pt-space-md">
+<!-- Artist 1: Kraftwerk -->
+<article class="group cursor-pointer flex flex-col bg-surface-container-lowest border border-surface-container-highest hover:border-primary-container transition-colors" onclick="switchView('kraftwerk')">
+<div class="relative w-full aspect-square bg-surface-container border-b border-surface-container-highest overflow-hidden">
+<img class="w-full h-full object-cover grayscale contrast-125 group-hover:scale-105 transition-transform duration-300" data-alt="Monochromatic high-contrast architectural portrait of electronic pioneers Kraftwerk" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCkJ0SeOPaSmJOci3HjqE6XppXXiiKNzDyPbk63T9xSKU7GjYIukahH6HsDUAFpnqdmkaNBN0PeP4sKzB_mDIVoY5IpIOfIWqLnaIFmsbj3IhrHHQKxDFpZXI7eaN7wW7Fcjs-GgIunjvFbsOUO3Qb_iyvlbZkjZIduPOrwQmt2bt423Uuujz_0SnnGkhX0ICt8mVk5azrQBfbn7tMAAhkoGNSjHhjBUN26BMcL2-E"/>
+<div class="absolute bottom-2 right-2 w-9 h-9 bg-primary-container text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<div class="p-space-sm flex flex-col justify-between">
+<h3 class="font-headline-md text-headline-md tracking-tight font-semibold text-on-surface uppercase group-hover:text-primary transition-colors truncate">KRAFTWERK</h3>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary uppercase mt-1">DÜSSELDORF · 1970</span>
+</div>
+</article>
+<!-- Artist 2: Brian Eno -->
+<article class="group cursor-pointer flex flex-col bg-surface-container-lowest border border-surface-container-highest hover:border-primary-container transition-colors" onclick="switchView('eno')">
+<div class="relative w-full aspect-square bg-surface-container border-b border-surface-container-highest overflow-hidden">
+<img class="w-full h-full object-cover grayscale contrast-125 group-hover:scale-105 transition-transform duration-300" data-alt="Minimalist monochromatic studio portrait of ambient music creator Brian Eno" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgJ13TXPVdQ3Ntj3Xa37W9dQvogwAGNN6RT7cf9raV_UJ-9o6ZcKN3YkF70eq4RXcSaI9g7hgoZ0IYGcq8E4nSn_BqZ4FiLkn0f6z2-gDxH_omg6acmb3LPISzNsWb--Cc6OXou3RaaYNK5RorUKkU_rvlCn6FLIalfoEW9TFQDw_mjYjIo2F7VeGYn8eRn8xhFHacb40aNSMUqjIJFUyVAUV1nzNsweGPq4bQO9g"/>
+<div class="absolute bottom-2 right-2 w-9 h-9 bg-primary-container text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<div class="p-space-sm flex flex-col justify-between">
+<h3 class="font-headline-md text-headline-md tracking-tight font-semibold text-on-surface uppercase group-hover:text-primary transition-colors truncate">BRIAN ENO</h3>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary uppercase mt-1">LONDON · 1972</span>
+</div>
+</article>
+<!-- Artist 3: Steve Reich -->
+<article class="group cursor-pointer flex flex-col bg-surface-container-lowest border border-surface-container-highest hover:border-primary-container transition-colors" onclick="switchView('reich')">
+<div class="relative w-full aspect-square bg-surface-container border-b border-surface-container-highest overflow-hidden">
+<img class="w-full h-full object-cover grayscale contrast-125 group-hover:scale-105 transition-transform duration-300" data-alt="Intense high-contrast black and white photograph of minimalist composer Steve Reich" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8fUaaGgid_yMIO2UrwJaxWgRGRkw56PpuG97NDvn1fAZJv8raYMceIqRHP4OxyRlvQWx6BmXQ5atmZ0J3_uIT99VgW1Lx1dAJqf9Epd6CZVR_-kikG-hhL79-7cEB6WK5ZT03pz2QqCrgErEBGN-oAPGDirOQ-buRJk4CSHsHriaHWJ3HHrbYa2FhBrFXIh7nIzdCd85KS0gKyc9y7y7qTQLErs54LB9npIQz-Hk"/>
+<div class="absolute bottom-2 right-2 w-9 h-9 bg-primary-container text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<div class="p-space-sm flex flex-col justify-between">
+<h3 class="font-headline-md text-headline-md tracking-tight font-semibold text-on-surface uppercase group-hover:text-primary transition-colors truncate">STEVE REICH</h3>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary uppercase mt-1">NEW YORK · 1966</span>
+</div>
+</article>
+<!-- Artist 4: Suzanne Ciani -->
+<article class="group cursor-pointer flex flex-col bg-surface-container-lowest border border-surface-container-highest hover:border-primary-container transition-colors" onclick="switchView('ciani')">
+<div class="relative w-full aspect-square bg-surface-container border-b border-surface-container-highest overflow-hidden">
+<img class="w-full h-full object-cover grayscale contrast-125 group-hover:scale-105 transition-transform duration-300" data-alt="Monochromatic portrait of synthesizer pioneer Suzanne Ciani" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXnuXG3braVNzkOJYX3WHP_RnkP67W2x5Rs0lIMCRyNrimLNLWA6OA1hPQeUWEVQaHc7g28nhQW6eRAhn3D9kBKw-YHz1uEelJUNa0tpwcTKztVyECNcKIxenbaFxzq8xHH8jhp7pRGcB15SjJyj18XIDcgeU-ZWUloDaEDNY_2W-jm7QIfbanx3HKzk7lvwdDfyOyPxQrJA0udFNpc9e2MwM-6JSnLy50yyZRBIo"/>
+<div class="absolute bottom-2 right-2 w-9 h-9 bg-primary-container text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<div class="p-space-sm flex flex-col justify-between">
+<h3 class="font-headline-md text-headline-md tracking-tight font-semibold text-on-surface uppercase group-hover:text-primary transition-colors truncate">SUZANNE CIANI</h3>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary uppercase mt-1">SAN FRANCISCO · 1974</span>
+</div>
+</article>
+</div>
+</section>
+<!-- 4. RECOMMENDED TRACKS (Rekomendasi Lagu) -->
+<section class="flex flex-col w-full">
+<div class="flex items-end justify-between pb-space-xs border-b border-surface-container-highest">
+<div class="flex items-center gap-space-sm">
+<span class="w-2.5 h-2.5 bg-primary-container inline-block"></span>
+<h2 class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider text-secondary">
+          RECOMMENDED TRACKS · REKOMENDASI LAGU
+        </h2>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary tracking-widest select-none">6 MASTER SELECTIONS</span>
+</div>
+<!-- Table of curated tracks -->
+<div class="w-full overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-surface-container-highest text-secondary font-label-mono-sm text-label-mono-sm uppercase">
+<th class="py-space-sm px-space-sm w-12 text-center">#</th>
+<th class="py-space-sm px-space-md">TITLE &amp; ARTWORK</th>
+<th class="py-space-sm px-space-md hidden sm:table-cell">ARTIST</th>
+<th class="py-space-sm px-space-md hidden md:table-cell">ALBUM</th>
+<th class="py-space-sm px-space-md text-right">DURATION</th>
+<th class="py-space-sm px-space-sm w-20 text-center">ACTION</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-highest font-body-sm text-body-sm" id="recommendations-tbody">
+<!-- Kraftwerk -->
+<tr class="group hover:bg-surface-container-low transition-colors cursor-pointer" onclick="playActiveSong('Kraftwerk', 'Autobahn', '22:42')">
+<td class="py-space-sm px-space-sm font-label-mono-sm text-label-mono-sm text-secondary text-center select-none group-hover:text-primary-container">
+<span class="group-hover:hidden">01</span>
+<span class="material-symbols-outlined text-[16px] hidden group-hover:inline-block">play_arrow</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 bg-surface-container-highest shrink-0 border border-surface-container-highest overflow-hidden">
+<img alt="Autobahn cover" class="w-full h-full object-cover grayscale" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4IueM3ar-uOtRyJz2pH28dTbvVpcEzzKUI11n10-2H8Kvfh2s7XKZhlDa-5fVfp8vm8I80r-hCcFcVO0bvB0RHFoZCdfS7dEnckSQUNVclLkDiqwsbSMj2dxubD6cjc0B5WnmXYZZQ1hnNSVtGMc9rDXSpyo3Q-en1FZqkMHu8m5mxhfHoD5N4XXXjl1Pajt__eYmuOXsW8FyUCHH7bNgfVf8fNZGbdxj4c-xdiY"/>
+</div>
+<div class="flex flex-col">
+<span class="font-medium text-on-surface">Autobahn</span>
+<span class="text-secondary font-label-mono-sm text-[11px] sm:hidden">Kraftwerk</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden sm:table-cell">Kraftwerk</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden md:table-cell">Autobahn (1974)</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm text-right select-none">22:42</td>
+<td class="py-space-sm px-space-sm text-center" onclick="event.stopPropagation()">
+<button class="px-2 py-0.5 border border-surface-container-highest text-secondary hover:text-on-surface hover:border-primary-container hover:bg-surface-container font-label-mono-sm text-label-mono-sm" onclick="togglePlaylistPopover(event, 'Autobahn', 'Kraftwerk')" title="Add to playlist" type="button">[ + ]</button>
+</td>
+</tr>
+<!-- Daft Punk -->
+<tr class="group hover:bg-surface-container-low transition-colors cursor-pointer" onclick="playActiveSong('Daft Punk', 'Aerodynamic', '03:32')">
+<td class="py-space-sm px-space-sm font-label-mono-sm text-label-mono-sm text-secondary text-center select-none group-hover:text-primary-container">
+<span class="group-hover:hidden">02</span>
+<span class="material-symbols-outlined text-[16px] hidden group-hover:inline-block">play_arrow</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 bg-surface-container-highest shrink-0 border border-surface-container-highest overflow-hidden">
+<img alt="Discovery cover" class="w-full h-full object-cover grayscale" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBim-5pByzkPQni52YEpGdQQQupF66F-YBtbWgVTQJGOnIvTK7SkOmFKP-Grk2vyjlY616Agr2jcxNzHUnkRUdo6rFv3tZ8rD3gfGeV-i_uXiqWdVqfgQQbwujd10PLLr3S9TH-WNAYerGl1Bj41shhZnCgp78HjUjKyeq2aVC6eXzMUgRjbvu7-YgV6nRv7FRhAZdmRFY09V5iQ7WbXTcjISdwGmhXRUitHJCVzFU"/>
+</div>
+<div class="flex flex-col">
+<span class="font-medium text-on-surface">Aerodynamic</span>
+<span class="text-secondary font-label-mono-sm text-[11px] sm:hidden">Daft Punk</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden sm:table-cell">Daft Punk</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden md:table-cell">Discovery (2001)</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm text-right select-none">03:32</td>
+<td class="py-space-sm px-space-sm text-center" onclick="event.stopPropagation()">
+<button class="px-2 py-0.5 border border-surface-container-highest text-secondary hover:text-on-surface hover:border-primary-container hover:bg-surface-container font-label-mono-sm text-label-mono-sm" onclick="togglePlaylistPopover(event, 'Aerodynamic', 'Daft Punk')" title="Add to playlist" type="button">[ + ]</button>
+</td>
+</tr>
+<!-- Radiohead -->
+<tr class="group hover:bg-surface-container-low transition-colors cursor-pointer" onclick="playActiveSong('Radiohead', 'Idioteque', '05:09')">
+<td class="py-space-sm px-space-sm font-label-mono-sm text-label-mono-sm text-secondary text-center select-none group-hover:text-primary-container">
+<span class="group-hover:hidden">03</span>
+<span class="material-symbols-outlined text-[16px] hidden group-hover:inline-block">play_arrow</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 bg-surface-container-highest shrink-0 border border-surface-container-highest overflow-hidden">
+<img alt="Kid A cover" class="w-full h-full object-cover grayscale" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBdCp_jUDKUeC56zfUfC1L4qld8WDuhj0Jej7BzmK1y0Ei4bMuipbFq588HIFsGCsiPkIRCTug0-MDDT9nKNVE4gnWYQ62ZfqexAfvovq1YLw8egUf60VcYgZd35u53HilZoRNN_IbS9GRs_wdRVHK5M1LqzJYLkTa0ANiYTVIZqylegpFkyCk6OtE_SIpdvFb_fhynOaV5BHWdczmcqrweAxLtnsGE-r14iRLRtBI"/>
+</div>
+<div class="flex flex-col">
+<span class="font-medium text-on-surface">Idioteque</span>
+<span class="text-secondary font-label-mono-sm text-[11px] sm:hidden">Radiohead</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden sm:table-cell">Radiohead</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden md:table-cell">Kid A (2000)</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm text-right select-none">05:09</td>
+<td class="py-space-sm px-space-sm text-center" onclick="event.stopPropagation()">
+<button class="px-2 py-0.5 border border-surface-container-highest text-secondary hover:text-on-surface hover:border-primary-container hover:bg-surface-container font-label-mono-sm text-label-mono-sm" onclick="togglePlaylistPopover(event, 'Idioteque', 'Radiohead')" title="Add to playlist" type="button">[ + ]</button>
+</td>
+</tr>
+<!-- Aphex Twin -->
+<tr class="group hover:bg-surface-container-low transition-colors cursor-pointer" onclick="playActiveSong('Aphex Twin', 'Xtal', '04:54')">
+<td class="py-space-sm px-space-sm font-label-mono-sm text-label-mono-sm text-secondary text-center select-none group-hover:text-primary-container">
+<span class="group-hover:hidden">04</span>
+<span class="material-symbols-outlined text-[16px] hidden group-hover:inline-block">play_arrow</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 bg-surface-container-highest shrink-0 border border-surface-container-highest overflow-hidden">
+<img alt="Selected Ambient Works cover" class="w-full h-full object-cover grayscale" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDu2pwkWW3dujPUIvXHnP-4Dlvm1huc0KFIes8k9PyaFkmlV6gMj3FPaTYgFes3DksHvxje1kJ6df0fzr8pxyKRT_ibUaJp9VgeqzX7Ze9ch08oP_RB8_UeuWMs-xcX9NalVQELgOvI6qb5J7UIn9M3MPKAV3QCdSJujzEORAOJTG6xqjwOXd-YpzjBHo7ondVvjVijFM1L68psvdlWtw0izhplEXNEpeAnloGQGuA"/>
+</div>
+<div class="flex flex-col">
+<span class="font-medium text-on-surface">Xtal</span>
+<span class="text-secondary font-label-mono-sm text-[11px] sm:hidden">Aphex Twin</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden sm:table-cell">Aphex Twin</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden md:table-cell">SAW 85-92 (1992)</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm text-right select-none">04:54</td>
+<td class="py-space-sm px-space-sm text-center" onclick="event.stopPropagation()">
+<button class="px-2 py-0.5 border border-surface-container-highest text-secondary hover:text-on-surface hover:border-primary-container hover:bg-surface-container font-label-mono-sm text-label-mono-sm" onclick="togglePlaylistPopover(event, 'Xtal', 'Aphex Twin')" title="Add to playlist" type="button">[ + ]</button>
+</td>
+</tr>
+<!-- Brian Eno -->
+<tr class="group hover:bg-surface-container-low transition-colors cursor-pointer" onclick="playActiveSong('Brian Eno', 'Music for Airports 1/1', '16:30')">
+<td class="py-space-sm px-space-sm font-label-mono-sm text-label-mono-sm text-secondary text-center select-none group-hover:text-primary-container">
+<span class="group-hover:hidden">05</span>
+<span class="material-symbols-outlined text-[16px] hidden group-hover:inline-block">play_arrow</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 bg-surface-container-highest shrink-0 border border-surface-container-highest overflow-hidden">
+<img alt="Music for Airports cover" class="w-full h-full object-cover grayscale" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIBsbvoTsqgxgHiRIk_kTlVpkNYgSxET7XuNgTNUMhPhFrtlZPy7aMxdLmHQ1wi88jgLNDTbdQemXhCo-agRGbKixgvUyj0CFZ66oafcKKFoza3vTV1U-eK_QCjisdD6yMwJnLbydSqvQI0D3IT5YvXzuVqEsTBnKlHI1p_uYHEQu5ABC9GjlWlHGGwiuKRKwiHrG90lB4nNjSziCackEbc8Jfd-NheODfzfh4UZA"/>
+</div>
+<div class="flex flex-col">
+<span class="font-medium text-on-surface">Music for Airports 1/1</span>
+<span class="text-secondary font-label-mono-sm text-[11px] sm:hidden">Brian Eno</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden sm:table-cell">Brian Eno</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden md:table-cell">Ambient 1 (1978)</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm text-right select-none">16:30</td>
+<td class="py-space-sm px-space-sm text-center" onclick="event.stopPropagation()">
+<button class="px-2 py-0.5 border border-surface-container-highest text-secondary hover:text-on-surface hover:border-primary-container hover:bg-surface-container font-label-mono-sm text-label-mono-sm" onclick="togglePlaylistPopover(event, 'Music for Airports 1/1', 'Brian Eno')" title="Add to playlist" type="button">[ + ]</button>
+</td>
+</tr>
+<!-- Massive Attack -->
+<tr class="group hover:bg-surface-container-low transition-colors cursor-pointer" onclick="playActiveSong('Massive Attack', 'Teardrop', '05:31')">
+<td class="py-space-sm px-space-sm font-label-mono-sm text-label-mono-sm text-secondary text-center select-none group-hover:text-primary-container">
+<span class="group-hover:hidden">06</span>
+<span class="material-symbols-outlined text-[16px] hidden group-hover:inline-block">play_arrow</span>
+</td>
+<td class="py-space-sm px-space-md">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 bg-surface-container-highest shrink-0 border border-surface-container-highest overflow-hidden">
+<img alt="Mezzanine cover" class="w-full h-full object-cover grayscale" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDptQlhdRz-BrNj26gdKLhtm8YB3HW1ub5lkXETdbPMJwuT2uRP2XcGt8DQK0Q7XQ6l3MURUX0i_iiAMKDVgXE2_CHfn8nCb-NYDkU6qLSzPao0R8jRVIr5f5d8_TiZjGTSx0VWz2tKWP7uI1UAdyeQrLdRLLjDa-hpCz3ArH5soxbNdfy890HaRFZS0P9Ti6Wd5u2dUKT_uxQh9Atu_1uAJdhGZDfZaZSYWbWK8Uo"/>
+</div>
+<div class="flex flex-col">
+<span class="font-medium text-on-surface">Teardrop</span>
+<span class="text-secondary font-label-mono-sm text-[11px] sm:hidden">Massive Attack</span>
+</div>
+</div>
+</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden sm:table-cell">Massive Attack</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden md:table-cell">Mezzanine (1998)</td>
+<td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm text-right select-none">05:31</td>
+<td class="py-space-sm px-space-sm text-center" onclick="event.stopPropagation()">
+<button class="px-2 py-0.5 border border-surface-container-highest text-secondary hover:text-on-surface hover:border-primary-container hover:bg-surface-container font-label-mono-sm text-label-mono-sm" onclick="togglePlaylistPopover(event, 'Teardrop', 'Massive Attack')" title="Add to playlist" type="button">[ + ]</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+<!-- ==================== PLAYLIST DETAIL VIEW (INTERACTIVE) ==================== -->
+<div class="hidden flex-col w-full space-y-space-lg" id="view-playlist">
+<!-- Top Bar with Return Navigation -->
+<div class="flex items-center justify-between pb-space-sm border-b border-surface-container-highest">
+<button class="flex items-center gap-2 px-space-sm py-1 border border-surface-container-highest text-secondary hover:text-on-surface hover:border-secondary hover:bg-surface-container transition-colors font-label-mono-sm text-label-mono-sm uppercase tracking-wider" onclick="switchMainView('home')" type="button">
+<span>← BACK TO HOME / KEMBALI</span>
+</button>
+<span class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider text-secondary" id="playlist-sys-id">
+          ARCHIVE NODE: PLAYLIST_MNGR_v1
+        </span>
+</div>
+<!-- Industrial Playlist Header Banner -->
+<div class="flex flex-col md:flex-row gap-space-lg p-space-lg bg-surface-container-lowest border border-surface-container-highest relative">
+<!-- Editable/Changeable Playlist Cover Image with Hover Trigger -->
+<div class="relative w-44 h-44 shrink-0 border border-surface-container-highest bg-surface-container overflow-hidden group">
+<img alt="Playlist Cover" class="w-full h-full object-cover grayscale contrast-125" id="playlist-cover-img" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLHVelBVgHS5rc1DnvY1bguc56BcQvkMIKd6E50zbo-wD-ismh7h6v57cmzbyOCQU98pJm9uKEQ42gP778ubXtE27JSW19YTMq4FfVUmA5_oI2ecmGDniVH4NLMxJUwvW6HXSEysi69SxZD3bvrv6Ky_1E6orGXA6B9iKbu1ZJ4fkfxfowyqJVP1g9rAGULAIIv16EMxfProzjm5hfaLIiz3knxi9R_73rq7qGuaI"/>
+<!-- Hover overlay to change cover -->
+<div class="absolute inset-0 bg-black/75 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2 text-center cursor-pointer" onclick="triggerChangeCoverModal()">
+<span class="material-symbols-outlined text-white text-[28px]">add_a_photo</span>
+<span class="font-label-mono-sm text-[10px] text-white tracking-wider uppercase font-semibold">GANTI GAMBAR / CHANGE COVER</span>
+</div>
+<div class="absolute top-1 left-1 bg-surface-container-lowest/90 px-1 font-label-mono-sm text-[9px] text-secondary pointer-events-none">
+            CURATED COV
+          </div>
+</div>
+<!-- Header Metadata & Actions -->
+<div class="flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-space-sm font-label-mono-sm text-label-mono-sm text-secondary uppercase mb-1">
+<span class="w-2 h-2 bg-primary-container inline-block"></span>
+<span>USER REPOSITORY · ACTIVE COMPILATION</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg md:text-[42px] tracking-tight font-bold text-on-surface uppercase leading-tight" id="playlist-title">
+              HEAVY ROTATION
+            </h1>
+<div class="flex items-center gap-3 mt-2 text-secondary font-label-mono-sm text-[12px]">
+<span id="playlist-track-count">6 TRACKS</span>
+<span>·</span>
+<span id="playlist-duration">43:20 TOTAL</span>
+<span>·</span>
+<span>LOSSLESS 24-BIT</span>
+</div>
+<p class="mt-space-sm font-body-sm text-body-sm text-secondary max-w-2xl leading-relaxed" id="playlist-description">
+              Daily curated reference masters in heavy rotation on the engineering desk.
+            </p>
+</div>
+<!-- Action buttons: Play All, Change Cover, Delete Playlist -->
+<div class="flex flex-wrap items-center gap-space-sm pt-space-md mt-space-sm border-t border-surface-container-highest">
+<button class="px-space-md py-space-sm bg-primary-container text-white font-label-mono-sm text-label-mono-sm uppercase tracking-wider font-semibold flex items-center gap-2 hover:opacity-95 transition-opacity" onclick="playPlaylistAll()" type="button">
+<span class="material-symbols-outlined text-[16px]">play_arrow</span>
+<span>PLAY ALL</span>
+</button>
+<button class="px-space-md py-space-sm border border-surface-container-highest text-secondary hover:text-on-surface hover:border-secondary hover:bg-surface-container transition-colors font-label-mono-sm text-label-mono-sm uppercase tracking-wider flex items-center gap-1.5" onclick="triggerChangeCoverModal()" type="button">
+<span class="material-symbols-outlined text-[15px]">image</span>
+<span>CHANGE COVER</span>
+</button>
+<button class="px-space-md py-space-sm border border-red-900/60 text-red-400 hover:bg-red-950/40 hover:border-red-600 transition-colors font-label-mono-sm text-label-mono-sm uppercase tracking-wider ml-auto flex items-center gap-1.5" onclick="confirmDeletePlaylist()" type="button">
+<span class="material-symbols-outlined text-[15px]">delete_forever</span>
+<span>DELETE PLAYLIST / HAPUS</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Tracks Table inside Playlist -->
+<section class="flex flex-col w-full">
+<div class="flex items-end justify-between pb-space-xs border-b border-surface-container-highest">
+<div class="flex items-center gap-space-sm">
+<span class="w-2.5 h-2.5 bg-surface-container-highest inline-block"></span>
+<h3 class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider text-secondary">
+              PLAYLIST TRACK SEQUENCE
+            </h3>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary tracking-widest select-none">SEQ: REORDER / REMOVE READY</span>
+</div>
+<div class="w-full overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-surface-container-highest text-secondary font-label-mono-sm text-label-mono-sm uppercase">
+<th class="py-space-sm px-space-sm w-12 text-center">#</th>
+<th class="py-space-sm px-space-md">TITLE</th>
+<th class="py-space-sm px-space-md hidden sm:table-cell">ARTIST</th>
+<th class="py-space-sm px-space-md text-right">DURATION</th>
+<th class="py-space-sm px-space-sm w-20 text-center">ACTION</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-highest font-body-sm text-body-sm" id="playlist-tracks-body">
+<!-- Populated by JS -->
+</tbody>
+</table>
+</div>
+</section>
+</div>
+<!-- ==================== ARTIST PROFILE VIEW (TOGGLEABLE) ==================== -->
+<div class="hidden flex-col w-full space-y-space-lg" id="view-artist">
+<!-- Back Navigation Bar -->
+<div class="flex items-center justify-between pb-space-sm border-b border-surface-container-highest">
+<button class="flex items-center gap-2 px-space-sm py-1 border border-surface-container-highest text-secondary hover:text-on-surface hover:border-secondary hover:bg-surface-container transition-colors font-label-mono-sm text-label-mono-sm uppercase tracking-wider" onclick="switchMainView('home')" type="button">
+<span>← BACK TO OVERVIEW</span>
+</button>
+<span class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider text-secondary">
+          CHASSIS MODULE: ARTIST_DOSSIER_REF_01
+        </span>
+</div>
+<!-- Industrial Header Banner -->
+<div class="flex flex-col md:flex-row gap-space-lg p-space-lg bg-surface-container-lowest border border-surface-container-highest">
+<div class="w-40 h-40 shrink-0 border border-surface-container-highest bg-surface-container relative">
+<img class="w-full h-full object-cover grayscale contrast-125" data-alt="Monochromatic portrait" id="artist-photo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6WBcBOJkyXGC6eLCXuEsvddE3gwDx0sbfoLcR7PKfVNuMpWyutxkIfcIk81U1r9XqsXq4lUiNSTi19kf7syygFPzhU64LTqF1E1F3CXBIezTo5mAGdjfAIKpV9in6UjHmnHNsuZ08Bla8Be79AiV1KH7MuMSALEXOmRqBEec9uoRWpQqG_aXjz-uve3f3mexjkuwz4l4zp5lGPG6F9IRaRt4YYUQ9gikAsNSWsgY"/>
+<div class="absolute top-1 left-1 bg-surface-container-lowest/80 px-1 font-label-mono-sm text-[9px] text-secondary">
+            REF #4902
+          </div>
+</div>
+<div class="flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center gap-space-sm font-label-mono-sm text-label-mono-sm text-secondary uppercase mb-1">
+<span class="w-2 h-2 bg-primary-container inline-block"></span>
+<span id="artist-location">DÜSSELDORF, DE · KLING KLANG STUDIO</span>
+</div>
+<h1 class="font-display-hero text-headline-lg md:text-display-hero tracking-tight font-semibold text-on-surface uppercase leading-none" id="artist-name">
+              KRAFTWERK
+            </h1>
+<p class="mt-space-sm font-body-sm text-body-sm text-secondary max-w-3xl leading-relaxed" id="artist-desc">
+              Pioneers of electronic music since 1970.
+            </p>
+</div>
+<div class="flex items-center gap-space-md pt-space-md mt-space-sm border-t border-surface-container-highest">
+<button class="px-space-md py-space-sm bg-primary-container text-white font-label-mono-sm text-label-mono-sm uppercase tracking-wider font-semibold flex items-center gap-2 hover:opacity-95 transition-opacity" onclick="playActiveSong('Kraftwerk', 'Autobahn', '22:42')" type="button">
+<span>▶ PLAY ALL</span>
+</button>
+<button class="px-space-md py-space-sm border border-surface-container-highest text-on-surface font-label-mono-sm text-label-mono-sm uppercase tracking-wider hover:border-secondary hover:bg-surface-container transition-colors" type="button">
+              FOLLOW DISCOGRAPHY
+            </button>
+</div>
+</div>
+</div>
+<!-- Curated Catalog Tracks -->
+<section class="flex flex-col w-full">
+<div class="flex items-end justify-between pb-space-xs border-b border-surface-container-highest">
+<div class="flex items-center gap-space-sm">
+<span class="w-2.5 h-2.5 bg-primary-container inline-block"></span>
+<h3 class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider text-secondary">
+              ENGINEERED DISCOGRAPHY · ESSENTIAL MASTER TAPES
+            </h3>
+</div>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary tracking-widest select-none">CHRONO-CATALOG</span>
+</div>
+<div class="w-full overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-surface-container-highest text-secondary font-label-mono-sm text-label-mono-sm uppercase">
+<th class="py-space-sm px-space-sm w-12 text-center">#</th>
+<th class="py-space-sm px-space-md">TITLE</th>
+<th class="py-space-sm px-space-md hidden sm:table-cell">ALBUM</th>
+<th class="py-space-sm px-space-md text-right">DURATION</th>
+<th class="py-space-sm px-space-sm w-16 text-center">ACTION</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-highest font-body-sm text-body-sm" id="artist-tracks-body">
+<!-- Populated dynamically -->
+</tbody>
+</table>
+</div>
+</section>
+</div>
+</div>
+</main></div>
+<!-- ==================== ADD TO PLAYLIST POPOVER MODAL ==================== -->
+<div class="fixed z-50 hidden bg-[#111111] border border-surface-container-highest p-space-md w-80 max-w-[90vw] shadow-2xl" id="playlist-popover" style="top: 200px; right: 2rem;">
+<div class="flex items-center justify-between pb-2 border-b border-surface-container-highest mb-space-sm">
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 bg-primary-container inline-block"></span>
+<span class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider text-secondary">
+      ADD TO PLAYLIST
+    </span>
+</div>
+<button class="text-secondary hover:text-on-surface font-label-mono-sm text-label-mono-sm select-none" onclick="closePlaylistPopover()" type="button">[✕]</button>
+</div>
+<!-- Active Target Track Readout -->
+<div class="mb-space-sm px-space-xs py-1.5 bg-surface-container-lowest border border-surface-container-highest">
+<span class="font-label-mono-sm text-[10px] text-secondary uppercase block truncate">TARGET SIGNAL:</span>
+<span class="font-label-mono-sm text-label-mono-sm text-primary font-semibold truncate block" id="popover-target-track">Autobahn</span>
+</div>
+<!-- Playlist Options List -->
+<div class="flex flex-col space-y-1 mb-space-md font-body-sm text-body-sm max-h-44 overflow-y-auto" id="popover-playlist-checkboxes">
+<!-- Populated by JS -->
+</div>
+<!-- Quick Add to Selected or Create New -->
+<div class="pt-space-sm border-t border-surface-container-highest flex flex-col gap-space-xs">
+<input class="w-full bg-surface-container-lowest border border-surface-container-highest px-space-xs py-1 text-on-surface font-label-mono-sm text-label-mono-sm placeholder:text-secondary focus:outline-none focus:border-primary-container" id="new-playlist-input" placeholder="+ New Playlist Name" type="text"/>
+<div class="flex items-center gap-2 mt-1">
+<button class="flex-1 py-1.5 bg-primary-container text-white font-label-mono-sm text-label-mono-sm uppercase tracking-wider font-semibold hover:opacity-95 transition-opacity" onclick="confirmAddToPlaylist()" type="button">
+        COMMIT / TAMBAH
+      </button>
+</div>
+</div>
+</div>
+<!-- ==================== CHANGE COVER MODAL ==================== -->
+<div class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" id="change-cover-modal">
+<div class="bg-[#111111] border border-surface-container-highest w-full max-w-md p-space-lg shadow-2xl">
+<div class="flex items-center justify-between pb-space-sm border-b border-surface-container-highest mb-space-md">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 bg-primary-container"></span>
+<span class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider text-secondary">GANTI GAMBAR COVER / SELECT COVER ART</span>
+</div>
+<button class="text-secondary hover:text-white font-label-mono-sm text-label-mono-sm" onclick="closeChangeCoverModal()" type="button">[✕]</button>
+</div>
+<p class="font-body-sm text-secondary mb-space-md">Pilih salah satu cover preset dari studio audio atau masukkan link gambar langsung:</p>
+<!-- Presets Grid -->
+<div class="grid grid-cols-4 gap-2 mb-space-md">
+<img alt="Preset 1" class="w-full aspect-square object-cover grayscale contrast-125 border border-surface-container-highest hover:border-primary-container cursor-pointer" onclick="selectCoverPreset(this.src)" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCXQ6LsyV9nJ2CkAk7i16Zp8gM_tnaAY6VxWEXVXGg4wQ4gIEoDtz68OoCR19zpwNKvKN-fSlHsw2GkoPy5_HQQNa6PWNURmMRpFpWeHUoVFg14lWQrzqpob35t895t_IehomqUyvhCqD5uQiaHISLmueJ6EUKHUYPkBOI7phu9S0gAKzWnDJOoQ5XRuLbNGwVztlbbQPMBvqgQ-UEPVmNJnTOp8u8ohN2AmlJ36Hw"/>
+<img alt="Preset 2" class="w-full aspect-square object-cover grayscale contrast-125 border border-surface-container-highest hover:border-primary-container cursor-pointer" onclick="selectCoverPreset(this.src)" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCaJXKcILbChJ9QDBKjfZWP5JRT6e4O1N3UHiO36UffkcA_I5vdRZG6r7zHgr-eGeVkbxLq55kOKTKXrpGMeMZrQX9l6VoKDtyPRJ-vx-Y-g19VuK8gS7_wJ-G94b3pyKHlOEcPiFnmAQuYMU69sfpnpXudkJypG5HkgH-I10-ExrVoZDuQcfuGdBxJn_jrHurwb3s-z-QrvFUPLbqVRkMON7fdesu3v3XyWiChGV8"/>
+<img alt="Preset 3" class="w-full aspect-square object-cover grayscale contrast-125 border border-surface-container-highest hover:border-primary-container cursor-pointer" onclick="selectCoverPreset(this.src)" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5NNzs-W-YU8NaIBLNvgN8rC38vgdGv6tB-5KxypwcbB7eyqHcEVDIA2_u1eYayOd-Rnn8WrdNUw9MZ9xr86kYXyB2jpMrkWrPegN-QRrRmWl36b7NJiBxMFTeOU2xLijai8ZoQa6lLegedcwGObm7i6KGbHzLfDvrADcbNnEl0Gg-pcUc1jzPnu0H3gQdeg_7zvNdeknBa1RbQ0QxhKBJl8BHQ08oIRD-m81lGOw"/>
+<img alt="Preset 4" class="w-full aspect-square object-cover grayscale contrast-125 border border-surface-container-highest hover:border-primary-container cursor-pointer" onclick="selectCoverPreset(this.src)" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAO0QGGVNU8bE_QXiZRbptMfqUx05rCRn_S2Qm__iOWY3mMXN1V_9Uoj1YZNKB3HkDcvm4Av2Ij0STG6usPyxx24sPkXrf9f0Pv-Uq9cYJe-r4bKP5vM94sQYSoi9-Pz9VS4AIrTm28tflzbiNNxZle3bsg6IQ_KSVpCPee45Uqx33ymQdGivPX5terEAp0HloULX4XLwI3C87G4aV1ISJhNJby-62efdkZci9lleU"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-mono-sm text-[11px] text-secondary uppercase">ATAU URL GAMBAR BARU:</label>
+<input class="w-full bg-surface-container-lowest border border-surface-container-highest px-3 py-2 text-on-surface font-label-mono-sm text-[12px] placeholder:text-secondary focus:border-primary-container focus:outline-none" id="custom-cover-url" placeholder="https://..." type="text"/>
+</div>
+<div class="flex items-center justify-end gap-2 mt-space-lg pt-space-sm border-t border-surface-container-highest">
+<button class="px-space-md py-1.5 border border-surface-container-highest text-secondary hover:text-white font-label-mono-sm text-label-mono-sm uppercase" onclick="closeChangeCoverModal()" type="button">BATAL</button>
+<button class="px-space-md py-1.5 bg-primary-container text-white font-label-mono-sm text-label-mono-sm uppercase font-semibold" onclick="applyCustomCoverUrl()" type="button">SIMPAN COVER</button>
+</div>
+</div>
+</div>
+<!-- ==================== NEW PLAYLIST MODAL ==================== -->
+<div class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" id="new-playlist-modal">
+<div class="bg-[#111111] border border-surface-container-highest w-full max-w-sm p-space-lg shadow-2xl">
+<div class="flex items-center justify-between pb-space-sm border-b border-surface-container-highest mb-space-md">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 bg-primary-container"></span>
+<span class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider text-secondary">CREATE PLAYLIST / PLAYLIST BARU</span>
+</div>
+<button class="text-secondary hover:text-white font-label-mono-sm text-label-mono-sm" onclick="closeNewPlaylistModal()" type="button">[✕]</button>
+</div>
+<div class="flex flex-col gap-3">
+<div>
+<label class="font-label-mono-sm text-[11px] text-secondary uppercase block mb-1">NAMA PLAYLIST:</label>
+<input class="w-full bg-surface-container-lowest border border-surface-container-highest px-3 py-2 text-on-surface font-body-sm placeholder:text-secondary focus:border-primary-container focus:outline-none" id="create-modal-playlist-name" placeholder="Contoh: Tape Loop Sessions 1984" type="text"/>
+</div>
+<div>
+<label class="font-label-mono-sm text-[11px] text-secondary uppercase block mb-1">DESKRIPSI (OPSIONAL):</label>
+<textarea class="w-full bg-surface-container-lowest border border-surface-container-highest px-3 py-2 text-on-surface font-body-sm placeholder:text-secondary focus:border-primary-container focus:outline-none h-20 resize-none" id="create-modal-playlist-desc" placeholder="Catatan kurasi audio..."></textarea>
+</div>
+</div>
+<div class="flex items-center justify-end gap-2 mt-space-lg pt-space-sm border-t border-surface-container-highest">
+<button class="px-space-md py-1.5 border border-surface-container-highest text-secondary hover:text-white font-label-mono-sm text-label-mono-sm uppercase" onclick="closeNewPlaylistModal()" type="button">BATAL</button>
+<button class="px-space-md py-1.5 bg-primary-container text-white font-label-mono-sm text-label-mono-sm uppercase font-semibold" onclick="handleCreatePlaylistSubmit()" type="button">BUAT PLAYLIST</button>
+</div>
+</div>
+</div>
+<!-- ==================== NOTIFICATION TOAST ==================== -->
+<div class="fixed bottom-24 right-6 z-50 hidden bg-[#111111] border border-primary-container px-space-md py-space-sm items-center gap-space-sm shadow-xl" id="system-toast">
+<span class="w-2 h-2 bg-primary-container inline-block animate-ping"></span>
+<span class="font-label-mono-sm text-label-mono-sm text-on-surface uppercase tracking-wider" id="toast-text">
+    TRACK ROUTED TO PLAYLIST
+  </span>
+</div>
+<!-- ==================== BOTTOM STICKY PLAYER BAR (DIETER RAMS AUDIOPHILE CONSOLE) ==================== -->
+<div class="fixed bottom-0 left-0 right-0 h-24 md:h-20 bg-[#0c0c0c] border-t border-surface-container-highest z-50 px-space-md md:px-space-lg flex flex-col md:flex-row items-center justify-between gap-space-xs md:gap-space-md">
+<!-- Left: Track info + album art -->
+<div class="w-full md:w-1/4 flex items-center gap-space-sm shrink-0 justify-between md:justify-start pt-1 md:pt-0">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-10 h-10 md:w-12 md:h-12 bg-surface-container-lowest border border-surface-container-highest shrink-0 flex items-center justify-center overflow-hidden">
+<img alt="Current track artwork" class="w-full h-full object-cover grayscale" id="player-artwork" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAEDbF_6Wv57aWVBJHWnO0wLE5mt9H31TfD_z-_bqz7PTmwTFlrcfNGWOEWkgluzUfJwzvs9HqMv5t1byQOWjNIba3HTpIw5SIEv_UIzfuQOFP64lHgD8pIBxP6DYp6VDUjq6Qu0-vZYuo3CdzNuPt2DmVMZrLRbBZF9T7MrS7mudhmWfQ1U8Ec8qkj3EwgcYLH8iGtLK4SSo0DkqkspKIBIZ4c3jrCShAjn0L3NKU"/>
+</div>
+<div class="min-w-0 leading-tight">
+<p class="font-body-sm text-body-sm font-semibold text-on-surface truncate" id="player-track-name">Autobahn</p>
+<span class="font-label-mono-sm text-label-mono-sm text-secondary hover:text-primary transition-colors truncate block" id="player-artist-name">Kraftwerk</span>
+</div>
+</div>
+<button class="px-2 py-1 border border-surface-container-highest text-secondary hover:text-on-surface hover:border-primary-container font-label-mono-sm text-label-mono-sm shrink-0" onclick="togglePlaylistPopover(event, document.getElementById('player-track-name').innerText, document.getElementById('player-artist-name').innerText)" title="Add currently playing to playlist" type="button">[ + ]</button>
+</div>
+<!-- Center: Dieter Rams Transport & Signal Orange Scrub Bar -->
+<div class="w-full md:w-2/4 flex flex-col items-center gap-1 shrink-0">
+<div class="flex items-center gap-space-md">
+<button class="text-secondary hover:text-white transition-colors" id="btn-shuffle" onclick="toggleShuffle()" title="Shuffle" type="button">
+<span class="material-symbols-outlined text-[18px]">shuffle</span>
+</button>
+<button class="text-secondary hover:text-white transition-colors" onclick="stepPreviousSong()" title="Previous" type="button">
+<span class="material-symbols-outlined text-[20px]">skip_previous</span>
+</button>
+<!-- Signal Orange Solid Play Button -->
+<button class="w-8 h-8 bg-primary-container text-white flex items-center justify-center hover:opacity-90 active:scale-95 transition-all shadow-sm" id="btn-play-pause" onclick="togglePlayState()" title="Play/Pause" type="button">
+<span class="material-symbols-outlined text-[20px]" id="play-pause-icon">pause</span>
+</button>
+<button class="text-secondary hover:text-white transition-colors" onclick="stepNextSong()" title="Next" type="button">
+<span class="material-symbols-outlined text-[20px]">skip_next</span>
+</button>
+<button class="text-primary-container hover:text-white transition-colors" id="btn-repeat" onclick="toggleRepeat()" title="Repeat" type="button">
+<span class="material-symbols-outlined text-[18px]">repeat</span>
+</button>
+</div>
+<div class="w-full max-w-md flex items-center gap-space-sm">
+<div class="flex-1 h-1 bg-surface-container-highest relative cursor-pointer group" onclick="seekAudioBar(event)">
+<div class="absolute left-0 top-0 bottom-0 bg-primary-container transition-all" id="audio-progress-bar" style="width: 42%;"></div>
+<div class="absolute top-1/2 -mt-1.5 w-3 h-3 bg-white border border-primary-container opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" id="audio-scrub-handle" style="left: 42%;"></div>
+</div>
+<span class="font-label-mono-sm text-[11px] text-secondary shrink-0 select-none" id="player-time-display">03:42 / 07:18</span>
+</div>
+</div>
+<!-- Right: Sound Level / Output Interface -->
+<div class="hidden md:flex w-1/4 justify-end items-center gap-space-sm shrink-0">
+<span class="font-label-mono-sm text-[10px] text-secondary tracking-widest uppercase mr-1">MONITOR</span>
+<span class="material-symbols-outlined text-secondary text-[18px]">volume_up</span>
+<div class="w-24 h-1 bg-surface-container-highest relative cursor-pointer group" onclick="changeVolume(event)">
+<div class="absolute left-0 top-0 bottom-0 bg-on-surface" id="volume-level-bar" style="width: 75%;"></div>
+</div>
+<span class="font-label-mono-sm text-[11px] text-secondary w-8 text-right" id="volume-readout">75%</span>
+</div>
+</div>
+<!-- Mobile Bottom Navigation Bar -->
+<nav class="md:hidden fixed bottom-24 left-0 right-0 h-12 bg-surface-container-lowest border-t border-surface-container-highest z-40 flex items-center justify-around">
+<button class="flex flex-col items-center justify-center flex-1 h-full text-primary" onclick="switchMainView('home')">
+<span class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider">Home</span>
+</button>
+<button class="flex flex-col items-center justify-center flex-1 h-full text-secondary hover:text-white" onclick="scrollToGenres()">
+<span class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider">Genres</span>
+</button>
+<button class="flex flex-col items-center justify-center flex-1 h-full text-secondary hover:text-white" onclick="openFirstPlaylist()">
+<span class="font-chassis-indicator text-chassis-indicator uppercase tracking-wider">Playlists</span>
+</button>
+</nav>
+<script>
+  // State Store: Playlists
+  let userPlaylists = {
+    'heavy-rotation': {
+      id: 'heavy-rotation',
+      title: 'Heavy Rotation',
+      description: 'Daily curated reference masters in heavy rotation on the engineering desk.',
+      cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&auto=format&fit=crop&q=80',
+      tracks: [
+        { id: 'hr-1', title: 'Autobahn', artist: 'Kraftwerk', dur: '22:42' },
+        { id: 'hr-2', title: 'Aerodynamic', artist: 'Daft Punk', dur: '03:32' },
+        { id: 'hr-3', title: 'Idioteque', artist: 'Radiohead', dur: '05:09' },
+        { id: 'hr-4', title: 'Xtal', artist: 'Aphex Twin', dur: '04:54' },
+        { id: 'hr-5', title: 'Music for Airports 1/1', artist: 'Brian Eno', dur: '16:30' },
+        { id: 'hr-6', title: 'Teardrop', artist: 'Massive Attack', dur: '05:31' }
+      ]
+    },
+    'minimal-wave-1982': {
+      id: 'minimal-wave-1982',
+      title: 'Minimal Wave 1982',
+      description: 'Underground coldwave, synth-pop prototypes, and tape rhythm box oddities from Western Europe.',
+      cover: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=400&auto=format&fit=crop&q=80',
+      tracks: [
+        { id: 'mw-1', title: 'The Model', artist: 'Kraftwerk', dur: '03:43' },
+        { id: 'mw-2', title: 'Seven Waves: Wind', artist: 'Suzanne Ciani', dur: '08:24' },
+        { id: 'mw-3', title: 'Computer World', artist: 'Kraftwerk', dur: '05:07' },
+        { id: 'mw-4', title: 'Pulse (Fragment)', artist: 'Steve Reich', dur: '06:14' }
+      ]
+    },
+    'analog-synthetics': {
+      id: 'analog-synthetics',
+      title: 'Analog Synthetics',
+      description: 'Pure voltage-controlled oscillator explorations and modular patch cord sequencing systems.',
+      cover: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=400&auto=format&fit=crop&q=80',
+      tracks: [
+        { id: 'as-1', title: 'Seven Waves: Wind', artist: 'Suzanne Ciani', dur: '08:24' },
+        { id: 'as-2', title: 'Trans-Europe Express', artist: 'Kraftwerk', dur: '06:53' },
+        { id: 'as-3', title: 'Xtal', artist: 'Aphex Twin', dur: '04:54' },
+        { id: 'as-4', title: 'Pulse Music', artist: 'Steve Reich', dur: '14:15' },
+        { id: 'as-5', title: 'An Ending (Ascent)', artist: 'Brian Eno', dur: '04:26' }
+      ]
+    },
+    'studio-monitor-reference': {
+      id: 'studio-monitor-reference',
+      title: 'Studio Monitor Reference',
+      description: 'Acoustic clarity tests, transient dynamics, phase response checks for nearfield audio equipment.',
+      cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&auto=format&fit=crop&q=80',
+      tracks: [
+        { id: 'sm-1', title: 'Teardrop', artist: 'Massive Attack', dur: '05:31' },
+        { id: 'sm-2', title: 'Idioteque', artist: 'Radiohead', dur: '05:09' },
+        { id: 'sm-3', title: 'Music for 18 Musicians', artist: 'Steve Reich', dur: '14:15' },
+        { id: 'sm-4', title: 'Autobahn', artist: 'Kraftwerk', dur: '22:42' }
+      ]
+    }
+  };
+
+  let activePlaylistId = 'heavy-rotation';
+  let targetTrackForPopover = { title: 'Autobahn', artist: 'Kraftwerk' };
+  let isPlaying = true;
+  let isShuffled = false;
+  let isRepeated = true;
+
+  // Artists Data
+  const artistsData = {
+    kraftwerk: {
+      name: "KRAFTWERK",
+      location: "DÜSSELDORF, DE · KLING KLANG STUDIO",
+      desc: "Pioneers of electronic music since 1970. Formed by Ralf Hütter and Florian Schneider, Kraftwerk revolutionized popular audio synthesis using vocoders, custom modular sequencing rigs, and pristine minimalist pop structures.",
+      tracks: [
+        { num: "01", title: "Autobahn", album: "Autobahn (1974)", dur: "22:42" },
+        { num: "02", title: "Computer World", album: "Computer World (1981)", dur: "05:07" },
+        { num: "03", title: "Trans-Europe Express", album: "Trans-Europe Express (1977)", dur: "06:53" },
+        { num: "04", title: "Radioactivity", album: "Radio-Activity (1975)", dur: "06:44" },
+        { num: "05", title: "The Model", album: "The Man-Machine (1978)", dur: "03:43" }
+      ]
+    },
+    eno: {
+      name: "BRIAN ENO",
+      location: "LONDON, UK · DISCREET RECORDS",
+      desc: "British musician, producer, and sonic theorist widely regarded as the principal architect of ambient music. Developed generative composition structures, tape loop delays, and algorithmic acoustic spatial treatments.",
+      tracks: [
+        { num: "01", title: "Music for Airports 1/1", album: "Ambient 1 (1978)", dur: "16:30" },
+        { num: "02", title: "An Ending (Ascent)", album: "Apollo (1983)", dur: "04:26" },
+        { num: "03", title: "1/2", album: "Ambient 1 (1978)", dur: "12:10" },
+        { num: "04", title: "St. Elmo's Fire", album: "Another Green World (1975)", dur: "02:41" }
+      ]
+    },
+    reich: {
+      name: "STEVE REICH",
+      location: "NEW YORK, NY · NONESUCH ARCHIVE",
+      desc: "American minimalist composer pioneer. Famous for discovering musical process via tape loop phase shifting, strict rhythmic pulse repetition, and pioneering pieces for mallet ensembles, voices, and tuned instruments.",
+      tracks: [
+        { num: "01", title: "Music for 18 Musicians", album: "Pulse (1978)", dur: "14:15" },
+        { num: "02", title: "Different Trains: America", album: "Different Trains (1989)", dur: "09:01" },
+        { num: "03", title: "Electric Counterpoint: III", album: "Counterpoint (1987)", dur: "04:30" },
+        { num: "04", title: "Clapping Music", album: "Processes (1972)", dur: "03:18" }
+      ]
+    },
+    ciani: {
+      name: "SUZANNE CIANI",
+      location: "SAN FRANCISCO, CA · BUCHLA LABS",
+      desc: "American composer, sound designer, and five-time Grammy nominee. Foremost virtuoso of the Buchla 200 synthesizer system, sculpting fluid quadraphonic spatial ocean wave synthesis and iconic tactile soundscapes.",
+      tracks: [
+        { num: "01", title: "Seven Waves: Wind", album: "Seven Waves (1982)", dur: "08:24" },
+        { num: "02", title: "The Velocity of Love", album: "Velocity of Love (1986)", dur: "04:27" },
+        { num: "03", title: "Buchla Concerts: Live 1975", album: "Buchla Archive (1975)", dur: "18:50" },
+        { num: "04", title: "Sirens", album: "Seven Waves (1982)", dur: "06:12" }
+      ]
+    }
+  };
+
+  // Main View Switcher: home | playlist | artist
+  function switchMainView(target) {
+    const homeEl = document.getElementById('view-home');
+    const playlistEl = document.getElementById('view-playlist');
+    const artistEl = document.getElementById('view-artist');
+    const navHome = document.getElementById('nav-btn-home');
+
+    homeEl.classList.add('hidden');
+    homeEl.classList.remove('flex');
+    playlistEl.classList.add('hidden');
+    playlistEl.classList.remove('flex');
+    artistEl.classList.add('hidden');
+    artistEl.classList.remove('flex');
+
+    if (target === 'home') {
+      homeEl.classList.remove('hidden');
+      homeEl.classList.add('flex');
+      navHome.classList.add('bg-surface-container-high', 'text-primary', 'border-l-2', 'border-primary-container', 'font-semibold');
+      navHome.classList.remove('text-secondary');
+      updateSidebarActivePlaylist(null);
+    } else if (target === 'playlist') {
+      playlistEl.classList.remove('hidden');
+      playlistEl.classList.add('flex');
+      navHome.classList.remove('bg-surface-container-high', 'text-primary', 'border-l-2', 'border-primary-container', 'font-semibold');
+      navHome.classList.add('text-secondary');
+    } else if (target === 'artist') {
+      artistEl.classList.remove('hidden');
+      artistEl.classList.add('flex');
+      navHome.classList.remove('bg-surface-container-high', 'text-primary', 'border-l-2', 'border-primary-container', 'font-semibold');
+      navHome.classList.add('text-secondary');
+      updateSidebarActivePlaylist(null);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function scrollToGenres() {
+    switchMainView('home');
+    setTimeout(() => {
+      const gSection = document.getElementById('genres-section');
+      if (gSection) {
+        gSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 50);
+  }
+
+  function openFirstPlaylist() {
+    const keys = Object.keys(userPlaylists);
+    if (keys.length > 0) {
+      openPlaylistView(keys[0]);
+    }
+  }
+
+  // Open Playlist Detail
+  function openPlaylistView(playlistId) {
+    const pl = userPlaylists[playlistId];
+    if (!pl) return;
+
+    activePlaylistId = playlistId;
+    document.getElementById('playlist-title').innerText = pl.title;
+    document.getElementById('playlist-description').innerText = pl.description || 'Custom user audio repository.';
+    document.getElementById('playlist-cover-img').src = pl.cover;
+    document.getElementById('playlist-track-count').innerText = `${pl.tracks.length} TRACKS`;
+    document.getElementById('playlist-sys-id').innerText = `NODE: ${playlistId.toUpperCase()}`;
+
+    // Render tracks table
+    renderPlaylistTracks(pl);
+    updateSidebarActivePlaylist(playlistId);
+    switchMainView('playlist');
+  }
+
+  function renderPlaylistTracks(pl) {
+    const tbody = document.getElementById('playlist-tracks-body');
+    tbody.innerHTML = '';
+
+    if (!pl.tracks || pl.tracks.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="py-8 text-center text-secondary font-label-mono-sm">PLAYLIST INI BELUM MEMILIKI LAGU. TAMBAHKAN LAGU DARI HOME [ + ]</td></tr>`;
+      return;
+    }
+
+    pl.tracks.forEach((track, idx) => {
+      const row = document.createElement('tr');
+      row.className = 'group hover:bg-surface-container-low transition-colors cursor-pointer';
+      const numStr = (idx + 1).toString().padStart(2, '0');
+      row.innerHTML = `
+        <td class="py-space-sm px-space-sm font-label-mono-sm text-label-mono-sm text-secondary text-center group-hover:text-primary select-none" onclick="playActiveSong('${escapeHtml(track.artist)}', '${escapeHtml(track.title)}', '${track.dur}')">
+          <span class="group-hover:hidden">${numStr}</span>
+          <span class="material-symbols-outlined text-[16px] hidden group-hover:inline-block">play_arrow</span>
+        </td>
+        <td class="py-space-sm px-space-md font-medium text-on-surface" onclick="playActiveSong('${escapeHtml(track.artist)}', '${escapeHtml(track.title)}', '${track.dur}')">
+          ${escapeHtml(track.title)}
+        </td>
+        <td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden sm:table-cell">
+          ${escapeHtml(track.artist)}
+        </td>
+        <td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm text-right select-none">
+          ${track.dur}
+        </td>
+        <td class="py-space-sm px-space-sm text-center">
+          <button 
+            type="button" 
+            onclick="removeTrackFromCurrentPlaylist('${track.id}')"
+            class="px-2 py-0.5 border border-surface-container-highest text-secondary hover:text-red-400 hover:border-red-500 font-label-mono-sm text-[11px]"
+            title="Hapus lagu dari playlist"
+          >[ ✕ ]</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  }
+
+  function updateSidebarActivePlaylist(activeId) {
+    const links = document.querySelectorAll('#sidebar-playlist-list a');
+    links.forEach(a => {
+      const pid = a.getAttribute('data-playlist-id');
+      if (pid === activeId) {
+        a.classList.add('text-primary', 'font-semibold', 'bg-surface-container-low', 'border-l-2', 'border-primary-container');
+        a.classList.remove('text-secondary');
+      } else {
+        a.classList.remove('text-primary', 'font-semibold', 'bg-surface-container-low', 'border-l-2', 'border-primary-container');
+        a.classList.add('text-secondary');
+      }
+    });
+  }
+
+  function renderSidebarPlaylists() {
+    const nav = document.getElementById('sidebar-playlist-list');
+    nav.innerHTML = '';
+    const keys = Object.keys(userPlaylists);
+    document.getElementById('sidebar-playlist-count').innerText = keys.length.toString().padStart(2, '0');
+
+    keys.forEach(k => {
+      const pl = userPlaylists[k];
+      const a = document.createElement('a');
+      a.className = 'truncate px-space-md py-space-xs text-secondary hover:text-on-surface hover:bg-surface-container-low transition-colors font-body-sm text-body-sm flex items-center justify-between group';
+      a.setAttribute('data-playlist-id', pl.id);
+      a.href = '#';
+      a.onclick = (e) => { e.preventDefault(); openPlaylistView(pl.id); };
+      a.innerHTML = `
+        <span class="truncate">${escapeHtml(pl.title)}</span>
+        <span class="font-label-mono-sm text-[10px] text-secondary opacity-0 group-hover:opacity-100">${pl.tracks.length.toString().padStart(2, '0')}</span>
+      `;
+      nav.appendChild(a);
+    });
+  }
+
+  // Remove track from playlist
+  function removeTrackFromCurrentPlaylist(trackId) {
+    const pl = userPlaylists[activePlaylistId];
+    if (!pl) return;
+    pl.tracks = pl.tracks.filter(t => t.id !== trackId);
+    renderPlaylistTracks(pl);
+    renderSidebarPlaylists();
+    updateSidebarActivePlaylist(activePlaylistId);
+    document.getElementById('playlist-track-count').innerText = `${pl.tracks.length} TRACKS`;
+    showToast(`LAGU TELAH DIHAPUS DARI [${pl.title.toUpperCase()}]`);
+  }
+
+  // Delete Playlist
+  function confirmDeletePlaylist() {
+    const pl = userPlaylists[activePlaylistId];
+    if (!pl) return;
+    const confirmed = confirm(`APOLLO SYSTEM DIALOG:\n\nApakah Anda yakin ingin menghapus playlist "${pl.title.toUpperCase()}" secara permanen?`);
+    if (confirmed) {
+      delete userPlaylists[activePlaylistId];
+      renderSidebarPlaylists();
+      showToast(`PLAYLIST [${pl.title.toUpperCase()}] TELAH DIHAPUS`);
+      switchMainView('home');
+    }
+  }
+
+  // Change Cover Modal
+  function triggerChangeCoverModal() {
+    document.getElementById('change-cover-modal').classList.remove('hidden');
+    document.getElementById('custom-cover-url').value = '';
+  }
+
+  function closeChangeCoverModal() {
+    document.getElementById('change-cover-modal').classList.add('hidden');
+  }
+
+  function selectCoverPreset(url) {
+    if (activePlaylistId && userPlaylists[activePlaylistId]) {
+      userPlaylists[activePlaylistId].cover = url;
+      document.getElementById('playlist-cover-img').src = url;
+      closeChangeCoverModal();
+      showToast("COVER PLAYLIST TELAH DIPERBARUI");
+    }
+  }
+
+  function applyCustomCoverUrl() {
+    const val = document.getElementById('custom-cover-url').value.trim();
+    if (val && activePlaylistId && userPlaylists[activePlaylistId]) {
+      userPlaylists[activePlaylistId].cover = val;
+      document.getElementById('playlist-cover-img').src = val;
+      closeChangeCoverModal();
+      showToast("COVER PLAYLIST TELAH DIPERBARUI");
+    } else {
+      closeChangeCoverModal();
+    }
+  }
+
+  // New Playlist Modal
+  function createNewPlaylistModal() {
+    document.getElementById('new-playlist-modal').classList.remove('hidden');
+    document.getElementById('create-modal-playlist-name').value = '';
+    document.getElementById('create-modal-playlist-desc').value = '';
+  }
+
+  function closeNewPlaylistModal() {
+    document.getElementById('new-playlist-modal').classList.add('hidden');
+  }
+
+  function handleCreatePlaylistSubmit() {
+    const nameInput = document.getElementById('create-modal-playlist-name');
+    const descInput = document.getElementById('create-modal-playlist-desc');
+    const name = nameInput.value.trim() || 'New Audio Repository';
+    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `playlist-${Date.now()}`;
+
+    userPlaylists[id] = {
+      id: id,
+      title: name,
+      description: descInput.value.trim() || 'Custom audiophile collection compiled on APOLLO terminal.',
+      cover: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=400&auto=format&fit=crop&q=80',
+      tracks: []
+    };
+
+    renderSidebarPlaylists();
+    closeNewPlaylistModal();
+    openPlaylistView(id);
+    showToast(`PLAYLIST [${name.toUpperCase()}] BERHASIL DIBUAT`);
+  }
+
+  // Add to Playlist Popover
+  function togglePlaylistPopover(event, trackName, artistName) {
+    if (event) event.stopPropagation();
+    const popover = document.getElementById('playlist-popover');
+    targetTrackForPopover = { title: trackName || 'Autobahn', artist: artistName || 'Unknown' };
+
+    document.getElementById('popover-target-track').innerText = `${targetTrackForPopover.title} · ${targetTrackForPopover.artist}`;
+
+    // Fill checkboxes with existing user playlists
+    const container = document.getElementById('popover-playlist-checkboxes');
+    container.innerHTML = '';
+    Object.keys(userPlaylists).forEach((key, idx) => {
+      const pl = userPlaylists[key];
+      const isAlreadyIn = pl.tracks.some(t => t.title.toLowerCase() === targetTrackForPopover.title.toLowerCase());
+      const label = document.createElement('label');
+      label.className = 'flex items-center gap-space-sm p-1 hover:bg-surface-container cursor-pointer select-none';
+      label.innerHTML = `
+        <input type="checkbox" value="${pl.id}" ${idx === 0 || isAlreadyIn ? 'checked' : ''} class="accent-[#FF4F00] w-3.5 h-3.5 rounded-none bg-surface-container border border-surface-container-highest"/>
+        <span class="text-on-surface font-medium truncate">${escapeHtml(pl.title)}</span>
+      `;
+      container.appendChild(label);
+    });
+
+    if (popover.classList.contains('hidden')) {
+      if (event && event.clientY) {
+        const viewportHeight = window.innerHeight;
+        let topPos = event.clientY - 40;
+        if (topPos + 350 > viewportHeight) {
+          topPos = viewportHeight - 370;
+        }
+        popover.style.top = Math.max(70, topPos) + 'px';
+      }
+      popover.classList.remove('hidden');
+    } else {
+      popover.classList.add('hidden');
+    }
+  }
+
+  function closePlaylistPopover() {
+    document.getElementById('playlist-popover').classList.add('hidden');
+  }
+
+  function confirmAddToPlaylist() {
+    const input = document.getElementById('new-playlist-input');
+    const newName = input.value.trim();
+    const checkedInputs = document.querySelectorAll('#popover-playlist-checkboxes input:checked');
+
+    if (newName) {
+      const newId = newName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      userPlaylists[newId] = {
+        id: newId,
+        title: newName,
+        description: 'Custom user repository',
+        cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&auto=format&fit=crop&q=80',
+        tracks: [{
+          id: `tr-${Date.now()}`,
+          title: targetTrackForPopover.title,
+          artist: targetTrackForPopover.artist,
+          dur: '04:30'
+        }]
+      };
+      renderSidebarPlaylists();
+      showToast(`"${targetTrackForPopover.title}" DITAMBAHKAN KE [${newName.toUpperCase()}]`);
+    } else {
+      checkedInputs.forEach(inp => {
+        const pl = userPlaylists[inp.value];
+        if (pl) {
+          const exists = pl.tracks.some(t => t.title.toLowerCase() === targetTrackForPopover.title.toLowerCase());
+          if (!exists) {
+            pl.tracks.push({
+              id: `tr-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+              title: targetTrackForPopover.title,
+              artist: targetTrackForPopover.artist,
+              dur: '04:15'
+            });
+          }
+        }
+      });
+      renderSidebarPlaylists();
+      showToast(`"${targetTrackForPopover.title}" BERHASIL DISIMPAN KE PLAYLIST`);
+    }
+
+    closePlaylistPopover();
+    input.value = '';
+    if (activePlaylistId && userPlaylists[activePlaylistId]) {
+      renderPlaylistTracks(userPlaylists[activePlaylistId]);
+    }
+  }
+
+  // Genre filter trigger
+  function filterGenre(genreName) {
+    showToast(`GENRE FILTER MATRIX ACTIVE: [${genreName.toUpperCase()}]`);
+    const searchInput = document.getElementById('global-search-input');
+    searchInput.value = genreName;
+    searchInput.focus();
+  }
+
+  // Search input handler
+  function filterCatalog(query) {
+    const rows = document.querySelectorAll('#recommendations-tbody tr');
+    const q = query.toLowerCase().trim();
+    rows.forEach(r => {
+      const text = r.innerText.toLowerCase();
+      if (!q || text.includes(q)) {
+        r.style.display = '';
+      } else {
+        r.style.display = 'none';
+      }
+    });
+  }
+
+  // Artist View Switcher
+  function switchView(target) {
+    if (target === 'overview') {
+      switchMainView('home');
+      return;
+    }
+    const data = artistsData[target];
+    if (data) {
+      document.getElementById('artist-name').innerText = data.name;
+      document.getElementById('artist-location').innerText = data.location;
+      document.getElementById('artist-desc').innerText = data.desc;
+      
+      const tbody = document.getElementById('artist-tracks-body');
+      tbody.innerHTML = '';
+      data.tracks.forEach(t => {
+        const row = document.createElement('tr');
+        row.className = 'group hover:bg-surface-container-low transition-colors cursor-pointer';
+        row.onclick = () => playActiveSong(data.name, t.title, t.dur);
+        row.innerHTML = `
+          <td class="py-space-sm px-space-sm font-label-mono-sm text-label-mono-sm text-secondary text-center group-hover:text-primary-container">${t.num}</td>
+          <td class="py-space-sm px-space-md font-medium text-on-surface">${t.title}</td>
+          <td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm hidden sm:table-cell">${t.album}</td>
+          <td class="py-space-sm px-space-md text-secondary font-label-mono-sm text-label-mono-sm text-right">${t.dur}</td>
+          <td class="py-space-sm px-space-sm text-center" onclick="event.stopPropagation()">
+            <button 
+              type="button" 
+              onclick="togglePlaylistPopover(event, '${t.title}', '${data.name}')"
+              class="px-2 py-0.5 border border-surface-container-highest text-secondary hover:text-on-surface hover:border-primary-container hover:bg-surface-container font-label-mono-sm text-label-mono-sm"
+            >[ + ]</button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+      switchMainView('artist');
+    }
+  }
+
+  // Audio Player Transport Controls
+  function playActiveSong(artist, title, dur) {
+    document.getElementById('player-artist-name').innerText = artist;
+    document.getElementById('player-track-name').innerText = title;
+    document.getElementById('player-time-display').innerText = `00:01 / ${dur || '04:30'}`;
+    isPlaying = true;
+    document.getElementById('play-pause-icon').innerText = 'pause';
+    document.getElementById('audio-progress-bar').style.width = '1%';
+    showToast(`MEMUTAR MASTER AUDIO: ${artist.toUpperCase()} - ${title.toUpperCase()}`);
+  }
+
+  function playPlaylistAll() {
+    const pl = userPlaylists[activePlaylistId];
+    if (pl && pl.tracks.length > 0) {
+      const first = pl.tracks[0];
+      playActiveSong(first.artist, first.title, first.dur);
+    }
+  }
+
+  function togglePlayState() {
+    isPlaying = !isPlaying;
+    const icon = document.getElementById('play-pause-icon');
+    icon.innerText = isPlaying ? 'pause' : 'play_arrow';
+    showToast(isPlaying ? "TRANSPORT: SIGNAL ACTIVE [PLAY]" : "TRANSPORT: PAUSED");
+  }
+
+  function toggleShuffle() {
+    isShuffled = !isShuffled;
+    const btn = document.getElementById('btn-shuffle');
+    if (isShuffled) {
+      btn.classList.add('text-primary-container');
+      btn.classList.remove('text-secondary');
+      showToast("SHUFFLE: RANDOM MATRIX ENABLED");
+    } else {
+      btn.classList.remove('text-primary-container');
+      btn.classList.add('text-secondary');
+      showToast("SHUFFLE: SEQUENTIAL");
+    }
+  }
+
+  function toggleRepeat() {
+    isRepeated = !isRepeated;
+    const btn = document.getElementById('btn-repeat');
+    if (isRepeated) {
+      btn.classList.add('text-primary-container');
+      btn.classList.remove('text-secondary');
+      showToast("LOOP: CONTINUOUS MASTER LOOP");
+    } else {
+      btn.classList.remove('text-primary-container');
+      btn.classList.add('text-secondary');
+      showToast("LOOP: DISABLED");
+    }
+  }
+
+  function stepNextSong() {
+    showToast("TRANSPORT: ADVANCING TO NEXT SIGNAL");
+  }
+
+  function stepPreviousSong() {
+    showToast("TRANSPORT: RETURNING TO PREVIOUS SIGNAL");
+  }
+
+  function seekAudioBar(event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const pos = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const percent = (pos * 100).toFixed(1) + '%';
+    document.getElementById('audio-progress-bar').style.width = percent;
+    document.getElementById('audio-scrub-handle').style.left = percent;
+  }
+
+  function changeVolume(event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const pos = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const percent = Math.round(pos * 100);
+    document.getElementById('volume-level-bar').style.width = percent + '%';
+    document.getElementById('volume-readout').innerText = percent + '%';
+  }
+
+  // Toast Helper
+  function showToast(message) {
+    const toast = document.getElementById('system-toast');
+    const text = document.getElementById('toast-text');
+    text.innerText = message;
+    toast.classList.remove('hidden');
+    toast.classList.add('flex');
+    clearTimeout(window.__toastTimeout);
+    window.__toastTimeout = setTimeout(() => {
+      toast.classList.add('hidden');
+      toast.classList.remove('flex');
+    }, 2800);
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>"']/g, function(m) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+    });
+  }
+
+  // Global Click & Keyboard Handlers
+  document.addEventListener('click', function(e) {
+    const popover = document.getElementById('playlist-popover');
+    if (popover && !popover.classList.contains('hidden')) {
+      if (!popover.contains(e.target)) {
+        popover.classList.add('hidden');
+      }
+    }
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      const search = document.getElementById('global-search-input');
+      if (document.activeElement === search) {
+        search.value = '';
+        search.blur();
+        filterCatalog('');
+      }
+      closePlaylistPopover();
+      closeChangeCoverModal();
+      closeNewPlaylistModal();
+    }
+  });
+
+  // Init
+  renderSidebarPlaylists();
+</script></body></html>
