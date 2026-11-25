@@ -21,6 +21,16 @@ if (empty($videoId) || !preg_match('/^[a-zA-Z0-9_\-]{6,15}$/', $videoId)) {
     jsonResponse(['status' => 'error', 'message' => 'Invalid or missing videoId (v)'], 400);
 }
 
+// On Vercel Serverless (AWS datacenter IP without Python yt-dlp), immediately instruct
+// client audio engine to engage the seamless Headless YouTube Audio Bridge (0ms latency, zero 504 timeouts)
+if (getenv('VERCEL') === '1' || getenv('VERCEL_ENV') !== false) {
+    jsonResponse([
+        'status' => 'use_yt_bridge',
+        'video_id' => $videoId,
+        'source' => 'apollo_yt_bridge'
+    ]);
+}
+
 $cacheFile = rtrim(sys_get_temp_dir(), '/\\') . '/apollo_stream_v2_' . preg_replace('/[^a-zA-Z0-9_\-]/', '', $videoId) . '.json';
 $cacheTtlSeconds = 2700; // 45 minutes
 

@@ -57,14 +57,133 @@ $meta = $curatedMetadata[$key] ?? [
 
 $artistTracks = [];
 $firstThumb = '';
-
-// =========================================================================
-// PRIMARY: Fetch Real Songs using bin/yt-dlp --dump-json --flat-playlist "ytsearch25:{name} songs official audio"
-// =========================================================================
-$ytDlpBin = getYtDlpBinary();
 $seenIds = [];
 
-if (function_exists('exec') || function_exists('shell_exec')) {
+// =========================================================================
+// TIER 1 (FAST CLOUD & LOCAL): YouTube Music Official Songs API (~0.8s, works on Vercel)
+// =========================================================================
+$ytmPayload = json_encode([
+    'context' => [
+        'client' => [
+            'clientName' => 'WEB_REMIX',
+            'clientVersion' => '1.20241028.01.00',
+            'hl' => 'en',
+            'gl' => 'ID'
+        ]
+    ],
+    'query' => $name,
+    'params' => 'EgWKAQIIAWoKEAkQBRAKEAMQBA=='
+]);
+
+$ytmResp = apolloHttpRequest(
+    'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
+    'POST',
+    [
+        'Content-Type: application/json',
+        'Origin: https://music.youtube.com',
+        'Referer: https://music.youtube.com/'
+    ],
+    $ytmPayload,
+    4
+);
+
+if ($ytmResp['code'] === 200 && !empty($ytmResp['body'])) {
+    $ytmData = json_decode($ytmResp['body'], true);
+    $sections = $ytmData['contents']['tabbedSearchResultsRenderer']['tabs'][0]['tabRenderer']['content']['sectionListRenderer']['contents'] ?? [];
+
+    foreach ($sections as $sec) {
+        foreach (($sec['musicShelfRenderer']['contents'] ?? []) as $item) {
+            $r = $item['musicResponsiveListItemRenderer'] ?? null;
+            if (!$r) continue;
+
+            $vId = $r['playlistItemData']['videoId'] ?? ($r['navigationEndpoint']['watchEndpoint']['videoId'] ?? '');
+            if (empty($vId) || isset($seenIds[$vId])) continue;
+
+            $rawTitle = '';
+            foreach (($r['flexColumns'][0]['musicResponsiveListItemFlexColumnRenderer']['text']['runs'] ?? []) as $tr) {
+                $rawTitle .= ($tr['text'] ?? '');
+            }
+            $rawTitle = trim($rawTitle);
+            if ($rawTitle === '') continue;
+
+            $segments = [];
+            $curSeg = '';
+            foreach (($r['flexColumns'][1]['musicResponsiveListItemFlexColumnRenderer']['text']['runs'] ?? []) as $mr) {
+                $txt = $mr['text'] ?? '';
+                if (trim($txt) === '•' || $txt === ' • ') {
+                    if (trim($curSeg) !== '') $segments[] = trim($curSeg);
+                    $curSeg = '';
+                } else {
+                    $curSeg .= $txt;
+                }
+            }
+            if (trim($curSeg) !== '') $segments[] = trim($curSeg);
+
+            if (!empty($segments) && in_array(strtolower($segments[0]), ['song', 'single', 'track', 'video'], true)) {
+                array_shift($segments);
+            }
+
+            $durText = '03:40';
+            $durSec = 220;
+            $filteredSegs = [];
+            foreach ($segments as $seg) {
+                if (preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', $seg)) {
+                    $durText = $seg;
+                    $parts = array_map('intval', explode(':', $seg));
+                    $durSec = (count($parts) === 3) ? ($parts[0] * 3600 + $parts[1] * 60 + $parts[2]) : ($parts[0] * 60 + $parts[1]);
+                } elseif (preg_match('/\b(plays|views)\b/i', $seg)) {
+                    continue;
+                } else {
+                    $filteredSegs[] = $seg;
+                }
+            }
+
+            $trackArtist = $filteredSegs[0] ?? $meta['name'];
+            $trackAlbum = $filteredSegs[1] ?? 'Essential Master Tape';
+
+            if (!isLegitimateMusicTrack($rawTitle . ' ' . $trackAlbum, $durSec, $trackArtist . ' - Topic', $name)) {
+                continue;
+            }
+
+            $thumbs = $r['thumbnail']['musicThumbnailRenderer']['thumbnail']['thumbnails'] ?? [];
+            $thumb = "https://i.ytimg.com/vi/{$vId}/hqdefault.jpg";
+            if (!empty($thumbs) && is_array($thumbs)) {
+                $lastT = end($thumbs);
+                if (!empty($lastT['url'])) {
+                    $thumb = $lastT['url'];
+                    if (strpos($thumb, 'googleusercontent.com') !== false || strpos($thumb, 'ggpht.com') !== false) {
+                        $thumb = preg_replace('/=w\d+-h\d+[^&?]*/', '=w544-h544-l90-rj', $thumb);
+                    }
+                }
+            }
+            if (empty($firstThumb)) {
+                $firstThumb = $thumb;
+            }
+
+            $seenIds[$vId] = true;
+            $artistTracks[] = [
+                'video_id' => $vId,
+                'title' => $rawTitle,
+                'artist' => $trackArtist,
+                'album' => $trackAlbum,
+                'duration' => $durText,
+                'thumbnail' => $thumb
+            ];
+
+            if (count($artistTracks) >= 20) {
+                break 2;
+            }
+        }
+    }
+}
+
+// =========================================================================
+// TIER 2 (LOCAL FALLBACK): Fetch Real Songs using bin/yt-dlp when not on Vercel
+// =========================================================================
+$isVercelRuntime = (getenv('VERCEL') === '1' || getenv('VERCEL_ENV') !== false);
+$ytDlpBin = getYtDlpBinary();
+
+if (!$isVercelRuntime && empty($artistTracks) && (function_exists('exec') || function_exists('shell_exec'))) {
     $searchTarget = "ytsearch25:{$name}";
     $cmd = escapeshellcmd($ytDlpBin) . " --dump-json --flat-playlist --no-warnings " . escapeshellarg($searchTarget) . " 2>/dev/null";
     

@@ -65,7 +65,9 @@ if ($action === 'list') {
     if (empty($pool)) {
         $seen = [];
 
-        // 1. Fetch "Trending community playlists" directly from YouTube Music Home
+        $commSeeds = ['Indie Indonesia', 'Chill Vibes', 'Pop Hits Playlist'];
+        shuffle($commSeeds);
+
         $homePayload = json_encode([
             'context' => [
                 'client' => [
@@ -78,17 +80,47 @@ if ($action === 'list') {
             'browseId' => 'FEmusic_home'
         ]);
 
-        $homeResp = apolloHttpRequest(
-            'https://music.youtube.com/youtubei/v1/browse?prettyPrint=false',
-            'POST',
-            [
-                'Content-Type: application/json',
-                'Origin: https://music.youtube.com',
-                'Referer: https://music.youtube.com/'
+        $seedPayload = json_encode([
+            'context' => [
+                'client' => [
+                    'clientName' => 'WEB_REMIX',
+                    'clientVersion' => '1.20241028.01.00',
+                    'hl' => 'en',
+                    'gl' => 'ID'
+                ]
             ],
-            $homePayload,
-            6
-        );
+            'query' => $commSeeds[0],
+            // YouTube Music "Community playlists" filter param
+            'params' => 'EgWKAQIoAWoKEAkQBRAKEAMQBA=='
+        ]);
+
+        $commParallel = apolloHttpParallel([
+            'home' => [
+                'url' => 'https://music.youtube.com/youtubei/v1/browse?prettyPrint=false',
+                'method' => 'POST',
+                'headers' => [
+                    'Content-Type: application/json',
+                    'Origin: https://music.youtube.com',
+                    'Referer: https://music.youtube.com/'
+                ],
+                'body' => $homePayload,
+                'timeout' => 4
+            ],
+            'seed' => [
+                'url' => 'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
+                'method' => 'POST',
+                'headers' => [
+                    'Content-Type: application/json',
+                    'Origin: https://music.youtube.com',
+                    'Referer: https://music.youtube.com/'
+                ],
+                'body' => $seedPayload,
+                'timeout' => 4
+            ]
+        ], 4);
+
+        $homeResp = $commParallel['home'] ?? ['code' => 0, 'body' => ''];
+        $seedResp = $commParallel['seed'] ?? ['code' => 0, 'body' => ''];
 
         if ($homeResp['code'] === 200 && !empty($homeResp['body'])) {
             $homeData = json_decode($homeResp['body'], true);
@@ -139,35 +171,6 @@ if ($action === 'list') {
                 }
             }
         }
-
-        // 2. Supplement with YouTube Music Community Playlists search filter so rotation stays fresh
-        $commSeeds = ['Indie Indonesia', 'Chill Vibes', 'Pop Hits Playlist'];
-        shuffle($commSeeds);
-        $seedPayload = json_encode([
-            'context' => [
-                'client' => [
-                    'clientName' => 'WEB_REMIX',
-                    'clientVersion' => '1.20241028.01.00',
-                    'hl' => 'en',
-                    'gl' => 'ID'
-                ]
-            ],
-            'query' => $commSeeds[0],
-            // YouTube Music "Community playlists" filter param
-            'params' => 'EgWKAQIoAWoKEAkQBRAKEAMQBA=='
-        ]);
-
-        $seedResp = apolloHttpRequest(
-            'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
-            'POST',
-            [
-                'Content-Type: application/json',
-                'Origin: https://music.youtube.com',
-                'Referer: https://music.youtube.com/'
-            ],
-            $seedPayload,
-            6
-        );
 
         if ($seedResp['code'] === 200 && !empty($seedResp['body'])) {
             $seedData = json_decode($seedResp['body'], true);

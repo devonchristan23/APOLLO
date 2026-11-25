@@ -10,6 +10,12 @@
   // State Management
   const state = {
     audio: null,
+    playbackBackend: 'html5', // 'html5' | 'yt_bridge'
+    ytPlayer: null,
+    ytApiReady: false,
+    ytPendingVideoId: null,
+    ytProgressTimer: null,
+    ytFallbackTriedForId: null,
     isPlaying: false,
     currentTrack: null,
     queue: [],
@@ -187,6 +193,9 @@
       loadPlaylists(),
       loadHomeRecommendations()
     ]);
+
+    // Pre-warm headless YT Audio Bridge script silently so cloud/Vercel first-click playback is instant
+    setTimeout(() => ensureYtBridgeLoaded(), 600);
   }
 
   /**
@@ -1332,7 +1341,150 @@
   }
 
   /**
-   * Audio Engine Playback Logic (100% Ad-Free Direct Stream)
+   * Headless YouTube Audio Bridge (Automatic Cloud/Vercel Fallback when direct stream is blocked)
+   */
+  function ensureYtBridgeLoaded() {
+    if (window.YT && window.YT.Player) {
+      initYtBridgePlayer();
+      return;
+    }
+    if (!document.getElementById('apollo-yt-iframe-api')) {
+      const prevCallback = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = function () {
+        if (typeof prevCallback === 'function') prevCallback();
+        initYtBridgePlayer();
+      };
+      const tag = document.createElement('script');
+      tag.id = 'apollo-yt-iframe-api';
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+    }
+  }
+
+  function initYtBridgePlayer() {
+    if (state.ytPlayer || !(window.YT && window.YT.Player)) return;
+    const targetEl = document.getElementById('apollo-yt-bridge');
+    if (!targetEl) return;
+
+    state.ytPlayer = new window.YT.Player('apollo-yt-bridge', {
+      height: '1',
+      width: '1',
+      videoId: state.ytPendingVideoId || '',
+      playerVars: {
+        autoplay: 1,
+        controls: 0,
+        disablekb: 1,
+        fs: 0,
+        modestbranding: 1,
+        playsinline: 1,
+        rel: 0
+      },
+      events: {
+        onReady: (ev) => {
+          state.ytApiReady = true;
+          ev.target.setVolume(state.isMuted ? 0 : Math.round(state.volume * 100));
+          if (state.ytPendingVideoId) {
+            const vid = state.ytPendingVideoId;
+            state.ytPendingVideoId = null;
+            ev.target.loadVideoById(vid);
+            ev.target.playVideo();
+          }
+        },
+        onStateChange: (ev) => {
+          if (state.playbackBackend !== 'yt_bridge') return;
+          const YTState = window.YT.PlayerState;
+          if (ev.data === YTState.PLAYING) {
+            state.isPlaying = true;
+            updatePlayPauseButton();
+            updateActiveTrackRowHighlight();
+            updateMediaSessionPlaybackState();
+            startYtProgressLoop();
+          } else if (ev.data === YTState.PAUSED) {
+            state.isPlaying = false;
+            updatePlayPauseButton();
+            updateMediaSessionPlaybackState();
+          } else if (ev.data === YTState.ENDED) {
+            stopYtProgressLoop();
+            if (state.repeatMode === 2 && state.ytPlayer) {
+              state.ytPlayer.seekTo(0, true);
+              state.ytPlayer.playVideo();
+            } else {
+              playNextTrack();
+            }
+          }
+        },
+        onError: async (ev) => {
+          if (state.playbackBackend !== 'yt_bridge' || !state.currentTrack) return;
+          // Error 101/150 means specific Topic video restricts embed -> auto-resolve playable audio match!
+          const curTrack = state.currentTrack;
+          if (state.ytFallbackTriedForId !== curTrack.video_id) {
+            state.ytFallbackTriedForId = curTrack.video_id;
+            try {
+              const q = `${curTrack.artist || ''} ${curTrack.title || ''} audio`.trim();
+              const sRes = await fetch(`api/search.php?q=${encodeURIComponent(q)}`);
+              const sData = await sRes.json();
+              if (sData.status === 'ok' && Array.isArray(sData.tracks)) {
+                const alt = sData.tracks.find(t => t.video_id && t.video_id !== curTrack.video_id && t.source === 'youtube')
+                  || sData.tracks.find(t => t.video_id && t.video_id !== curTrack.video_id);
+                if (alt && state.ytPlayer && state.ytApiReady) {
+                  state.ytPlayer.loadVideoById(alt.video_id);
+                  state.ytPlayer.playVideo();
+                  return;
+                }
+              }
+            } catch (err) {}
+          }
+          showToast('TRACK RESTRICTED BY LABEL — SKIPPING TO NEXT');
+          setTimeout(() => playNextTrack(), 900);
+        }
+      }
+    });
+  }
+
+  function startYtProgressLoop() {
+    clearInterval(state.ytProgressTimer);
+    state.ytProgressTimer = setInterval(() => {
+      if (state.playbackBackend !== 'yt_bridge' || !state.ytPlayer || !state.ytApiReady) return;
+      try {
+        const cur = state.ytPlayer.getCurrentTime() || 0;
+        const dur = state.ytPlayer.getDuration() || 0;
+        DOM.timeCurrent.textContent = formatTime(cur);
+        if (dur > 0) {
+          DOM.timeDuration.textContent = formatTime(dur);
+          DOM.seekFill.style.width = `${Math.min(100, (cur / dur) * 100)}%`;
+        }
+      } catch (e) {}
+    }, 250);
+  }
+
+  function stopYtProgressLoop() {
+    clearInterval(state.ytProgressTimer);
+  }
+
+  function playViaYtBridge(track) {
+    try { state.audio.pause(); } catch (e) {}
+    state.audio.removeAttribute('src');
+    state.playbackBackend = 'yt_bridge';
+    ensureYtBridgeLoaded();
+
+    if (state.ytPlayer && state.ytApiReady && typeof state.ytPlayer.loadVideoById === 'function') {
+      state.ytPendingVideoId = null;
+      state.ytPlayer.setVolume(state.isMuted ? 0 : Math.round(state.volume * 100));
+      state.ytPlayer.loadVideoById(track.video_id);
+      state.ytPlayer.playVideo();
+    } else {
+      state.ytPendingVideoId = track.video_id;
+    }
+
+    state.isPlaying = true;
+    updatePlayPauseButton();
+    updateActiveTrackRowHighlight();
+    updateMediaSessionPlaybackState();
+    showToast(`NOW PLAYING: ${track.title.toUpperCase()}`);
+  }
+
+  /**
+   * Audio Engine Playback Logic (Dual-Engine: Direct PHP Stream + Seamless YT Bridge Fallback)
    */
   async function playTrack(track, queueList = null, playOpts = {}) {
     if (!track || !track.video_id) return;
@@ -1381,6 +1533,12 @@
       })
     }).catch(() => {});
 
+    // Stop YT bridge if previously active before attempting direct HTML5 stream
+    if (state.ytPlayer && state.ytApiReady && typeof state.ytPlayer.stopVideo === 'function') {
+      try { state.ytPlayer.stopVideo(); } catch (e) {}
+    }
+    stopYtProgressLoop();
+    state.playbackBackend = 'html5';
     state.audio.loop = (state.repeatMode === 2);
 
     // Cancel any previous in-flight stream resolution so rapid clicks never trigger false errors
@@ -1425,9 +1583,12 @@
       const data = await res.json();
       if (reqSeq !== state.playRequestSeq) return;
 
+      if (data.status === 'use_yt_bridge') {
+        playViaYtBridge(track);
+        return;
+      }
+
       if (data.status === 'ok') {
-        // Use local PHP proxy_url first: stream metadata & headers are already cached in /tmp,
-        // avoiding browser 403 Forbidden / CORS rejections from googlevideo.com
         const primaryUrl = data.proxy_url || data.stream_url;
         state.audio.src = primaryUrl;
 
@@ -1438,26 +1599,21 @@
           updatePlayPauseButton();
           updateActiveTrackRowHighlight();
           updateMediaSessionPlaybackState();
+          return;
         } catch (playErr) {
           if (playErr && playErr.name === 'AbortError') return;
-          console.warn('Primary stream play issue, retrying with refreshed stream:', playErr);
-          const retryUrl = `api/stream.php?v=${encodeURIComponent(track.video_id)}&proxy=1&refresh=1&t=${Date.now()}`;
-          state.audio.src = retryUrl;
-          await state.audio.play();
-          if (reqSeq !== state.playRequestSeq) return;
-          state.isPlaying = true;
-          updatePlayPauseButton();
-          updateActiveTrackRowHighlight();
-          updateMediaSessionPlaybackState();
+          console.warn('Direct stream play blocked, engaging YT Audio Bridge:', playErr);
+          playViaYtBridge(track);
+          return;
         }
       } else {
-        showToast(`SIGNAL ERROR: ${data.message || 'Stream extraction failed'}`);
+        playViaYtBridge(track);
       }
     } catch (err) {
       if (err && err.name === 'AbortError') return;
       if (reqSeq !== state.playRequestSeq) return;
-      console.error('Audio stream fetch error:', err);
-      showToast('AUDIO ENGINE: STREAM UNAVAILABLE — TRY ANOTHER VERSION');
+      console.warn('Direct stream endpoint unavailable, engaging YT Audio Bridge:', err);
+      playViaYtBridge(track);
     }
   }
 
@@ -1559,6 +1715,20 @@
       return;
     }
 
+    if (state.playbackBackend === 'yt_bridge' && state.ytPlayer && state.ytApiReady) {
+      const pState = state.ytPlayer.getPlayerState();
+      if (pState === window.YT.PlayerState.PLAYING) {
+        state.ytPlayer.pauseVideo();
+        state.isPlaying = false;
+      } else {
+        state.ytPlayer.playVideo();
+        state.isPlaying = true;
+      }
+      updatePlayPauseButton();
+      updateMediaSessionPlaybackState();
+      return;
+    }
+
     // If audio src has not been loaded yet (initial default track), fetch & play immediately
     if (!state.audio.src) {
       playTrack(state.currentTrack, state.queue.length > 0 ? state.queue : liveRecommendedTracks);
@@ -1612,7 +1782,12 @@
   }
 
   function playPreviousTrack() {
-    if (state.audio.currentTime > 3) {
+    if (state.playbackBackend === 'yt_bridge' && state.ytPlayer && state.ytApiReady) {
+      if ((state.ytPlayer.getCurrentTime() || 0) > 3) {
+        state.ytPlayer.seekTo(0, true);
+        return;
+      }
+    } else if (state.audio.currentTime > 3) {
       state.audio.currentTime = 0;
       return;
     }
@@ -1728,6 +1903,7 @@
     });
 
     state.audio.addEventListener('error', (e) => {
+      if (state.playbackBackend !== 'html5' || !state.audio.getAttribute('src')) return;
       console.warn('Audio element error event:', e);
       if (state.currentTrack && state.isPlaying) {
         recoverAudioStream('error');
@@ -1763,6 +1939,14 @@
       const clickX = e.clientX - rect.left;
       const width = rect.width;
       const percent = Math.max(0, Math.min(1, clickX / width));
+      if (state.playbackBackend === 'yt_bridge' && state.ytPlayer && state.ytApiReady) {
+        const dur = state.ytPlayer.getDuration() || 0;
+        if (dur > 0) {
+          state.ytPlayer.seekTo(percent * dur, true);
+          DOM.seekFill.style.width = `${percent * 100}%`;
+        }
+        return;
+      }
       if (state.audio.duration) {
         state.audio.currentTime = percent * state.audio.duration;
       }
@@ -1780,11 +1964,18 @@
       if (state.isMuted) {
         state.isMuted = false;
         state.audio.volume = state.volume;
+        if (state.ytPlayer && state.ytApiReady) {
+          state.ytPlayer.unMute();
+          state.ytPlayer.setVolume(Math.round(state.volume * 100));
+        }
         DOM.volFill.style.width = (state.volume * 100) + '%';
         DOM.volIcon.textContent = state.volume > 0.5 ? 'volume_up' : 'volume_down';
       } else {
         state.isMuted = true;
         state.audio.volume = 0;
+        if (state.ytPlayer && state.ytApiReady) {
+          state.ytPlayer.mute();
+        }
         DOM.volFill.style.width = '0%';
         DOM.volIcon.textContent = 'volume_off';
       }
@@ -1795,6 +1986,14 @@
     state.volume = vol;
     state.isMuted = (vol === 0);
     state.audio.volume = vol;
+    if (state.ytPlayer && state.ytApiReady) {
+      if (vol === 0) {
+        state.ytPlayer.mute();
+      } else {
+        state.ytPlayer.unMute();
+        state.ytPlayer.setVolume(Math.round(vol * 100));
+      }
+    }
     DOM.volFill.style.width = (vol * 100) + '%';
     if (vol === 0) {
       DOM.volIcon.textContent = 'volume_off';
@@ -2336,6 +2535,9 @@
       const res = await fetch(`api/search.php?q=${encodeURIComponent(query)}`, {
         signal: state.searchAbortController.signal
       });
+      if (!res.ok) {
+        throw new Error(`Search HTTP ${res.status}`);
+      }
       const data = await res.json();
 
       if (currentSeq !== state.searchSequence) {
@@ -2344,7 +2546,6 @@
 
       if (data.status === 'ok') {
         if (data.tracks && data.tracks.length > 0) {
-          // Ensure client-side sort also keeps official YouTube Music w/ album art strictly on top
           const sortedTracks = [...data.tracks].sort((a, b) => {
             const aOfficial = (a.is_official || a.source === 'youtube_music') ? 0 : 1;
             const bOfficial = (b.is_official || b.source === 'youtube_music') ? 0 : 1;
@@ -2363,10 +2564,20 @@
         }
       }
     } catch (e) {
-      if (e.name === 'AbortError') {
+      if (e && e.name === 'AbortError') {
         return;
       }
       console.warn('Search error:', e);
+      if (currentSeq === state.searchSequence) {
+        DOM.tracksMetaCount.textContent = '0 TRACKS';
+        DOM.tracksTableBody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; padding: 35px; font-family: var(--font-mono); color: var(--signal-orange); letter-spacing: 1px;">
+              SEARCH CONNECTION TIMEOUT — PRESS ENTER TO RETRY "${escapeHtml(query.toUpperCase())}"
+            </td>
+          </tr>
+        `;
+      }
     }
   }
 
@@ -2880,7 +3091,10 @@
       navigator.mediaSession.setActionHandler('previoustrack', () => playPreviousTrack());
       navigator.mediaSession.setActionHandler('nexttrack', () => playNextTrack());
       navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime && state.audio.duration) {
+        if (details.seekTime === undefined) return;
+        if (state.playbackBackend === 'yt_bridge' && state.ytPlayer && state.ytApiReady) {
+          state.ytPlayer.seekTo(details.seekTime, true);
+        } else if (state.audio.duration) {
           state.audio.currentTime = details.seekTime;
         }
       });

@@ -149,30 +149,35 @@ function getLiveYoutubeMusicRecommendations() {
         ];
         shuffle($artistSeeds);
 
-        foreach (array_slice($artistSeeds, 0, 2) as $seedArtist) {
-            $seedPayload = json_encode([
-                'context' => [
-                    'client' => [
-                        'clientName' => 'WEB_REMIX',
-                        'clientVersion' => '1.20241028.01.00',
-                        'hl' => 'en',
-                        'gl' => 'ID'
-                    ]
-                ],
-                'query' => $seedArtist,
-                'params' => 'EgWKAQIIAWoKEAkQBRAKEAMQBA=='
-            ]);
-            $seedResp = apolloHttpRequest(
-                'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
-                'POST',
-                [
+        $pickedSeeds = array_slice($artistSeeds, 0, 2);
+        $seedRequests = [];
+        foreach ($pickedSeeds as $idx => $seedArtist) {
+            $seedRequests['seed_' . $idx] = [
+                'url' => 'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
+                'method' => 'POST',
+                'headers' => [
                     'Content-Type: application/json',
                     'Origin: https://music.youtube.com',
                     'Referer: https://music.youtube.com/'
                 ],
-                $seedPayload,
-                4
-            );
+                'body' => json_encode([
+                    'context' => [
+                        'client' => [
+                            'clientName' => 'WEB_REMIX',
+                            'clientVersion' => '1.20241028.01.00',
+                            'hl' => 'en',
+                            'gl' => 'ID'
+                        ]
+                    ],
+                    'query' => $seedArtist,
+                    'params' => 'EgWKAQIIAWoKEAkQBRAKEAMQBA=='
+                ]),
+                'timeout' => 4
+            ];
+        }
+
+        $seedResponses = apolloHttpParallel($seedRequests, 4);
+        foreach ($seedResponses as $seedResp) {
             if ($seedResp['code'] === 200 && !empty($seedResp['body'])) {
                 $seedData = json_decode($seedResp['body'], true);
                 $sSecs = $seedData['contents']['tabbedSearchResultsRenderer']['tabs'][0]['tabRenderer']['content']['sectionListRenderer']['contents'] ?? [];
@@ -243,7 +248,8 @@ $officialYtMusicTracks = [];
 $unofficialYoutubeTracks = [];
 
 // =========================================================================
-// TIER 1 (TOP PRIORITY): YOUTUBE MUSIC OFFICIAL SONGS (WITH ALBUM ARTWORK)
+// PARALLEL FETCH: TIER 1 (YOUTUBE MUSIC) + TIER 2 (YOUTUBE WEB) + PIPED BACKUP
+// Finishes in ~1.2s total so Vercel never hits 10s serverless timeout
 // =========================================================================
 $ytmPayload = json_encode([
     'context' => [
@@ -255,21 +261,54 @@ $ytmPayload = json_encode([
         ]
     ],
     'query' => $musicTarget,
-    // Songs filter in YouTube Music (returns official catalog songs with square album covers)
     'params' => 'EgWKAQIIAWoKEAkQBRAKEAMQBA=='
 ]);
 
-$ytmResp = apolloHttpRequest(
-    'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
-    'POST',
-    [
-        'Content-Type: application/json',
-        'Origin: https://music.youtube.com',
-        'Referer: https://music.youtube.com/'
+$ytWebPayload = json_encode([
+    'context' => [
+        'client' => [
+            'clientName' => 'WEB',
+            'clientVersion' => '2.20241028.01.00',
+            'hl' => 'en',
+            'gl' => 'ID'
+        ]
     ],
-    $ytmPayload,
-    6
-);
+    'query' => $musicTarget
+]);
+
+$parallelRes = apolloHttpParallel([
+    'ytm' => [
+        'url' => 'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
+        'method' => 'POST',
+        'headers' => [
+            'Content-Type: application/json',
+            'Origin: https://music.youtube.com',
+            'Referer: https://music.youtube.com/'
+        ],
+        'body' => $ytmPayload,
+        'timeout' => 4
+    ],
+    'ytweb' => [
+        'url' => 'https://www.youtube.com/youtubei/v1/search?prettyPrint=false',
+        'method' => 'POST',
+        'headers' => [
+            'Content-Type: application/json',
+            'Origin: https://www.youtube.com',
+            'Referer: https://www.youtube.com/'
+        ],
+        'body' => $ytWebPayload,
+        'timeout' => 4
+    ],
+    'piped_songs' => [
+        'url' => 'https://api.piped.private.coffee/search?q=' . urlencode($musicTarget) . '&filter=music_songs',
+        'method' => 'GET',
+        'timeout' => 4
+    ]
+], 4);
+
+$ytmResp = $parallelRes['ytm'] ?? ['code' => 0, 'body' => ''];
+$ytWebResp = $parallelRes['ytweb'] ?? ['code' => 0, 'body' => ''];
+$pipedSongsResp = $parallelRes['piped_songs'] ?? ['code' => 0, 'body' => ''];
 
 if ($ytmResp['code'] === 200 && !empty($ytmResp['body'])) {
     $ytmData = json_decode($ytmResp['body'], true);
@@ -379,33 +418,43 @@ if ($ytmResp['code'] === 200 && !empty($ytmResp['body'])) {
     }
 }
 
+// Supplement official YT Music results from Piped Music Songs if YT Music was rate-limited on cloud IP
+if (count($officialYtMusicTracks) < 6 && $pipedSongsResp['code'] === 200 && !empty($pipedSongsResp['body'])) {
+    $pipedData = json_decode($pipedSongsResp['body'], true);
+    foreach (($pipedData['items'] ?? []) as $pItem) {
+        $vId = '';
+        if (!empty($pItem['url'])) {
+            parse_str((string)parse_url($pItem['url'], PHP_URL_QUERY), $qArgs);
+            $vId = $qArgs['v'] ?? str_replace('/watch?v=', '', $pItem['url']);
+        }
+        if (empty($vId) || isset($seenIds[$vId])) continue;
+        $rawTitle = trim($pItem['title'] ?? '');
+        $uploader = preg_replace('/\s*-\s*Topic$/i', '', trim($pItem['uploaderName'] ?? ''));
+        $durSec = (int)($pItem['duration'] ?? 0);
+        if ($rawTitle === '' || !isLegitimateMusicTrack($rawTitle, $durSec, $uploader . ' - Topic', $q)) continue;
+
+        $thumb = $pItem['thumbnail'] ?? "https://i.ytimg.com/vi/{$vId}/hqdefault.jpg";
+        if (strpos($thumb, 'googleusercontent.com') !== false || strpos($thumb, 'ggpht.com') !== false) {
+            $thumb = preg_replace('/=w\d+-h\d+[^&?]*/', '=w544-h544-l90-rj', $thumb);
+        }
+        $seenIds[$vId] = true;
+        $officialYtMusicTracks[] = [
+            'video_id' => $vId,
+            'title' => $rawTitle,
+            'artist' => $uploader ?: 'Unknown Artist',
+            'album' => 'YouTube Music',
+            'duration' => formatSeconds($durSec),
+            'thumbnail' => $thumb,
+            'source' => 'youtube_music',
+            'is_official' => true
+        ];
+        if (count($officialYtMusicTracks) >= 14) break;
+    }
+}
+
 // =========================================================================
 // TIER 2 (SECONDARY / BELOW): YOUTUBE GENERAL RESULTS (UNOFFICIAL / VIDEOS)
 // =========================================================================
-$ytWebPayload = json_encode([
-    'context' => [
-        'client' => [
-            'clientName' => 'WEB',
-            'clientVersion' => '2.20241028.01.00',
-            'hl' => 'en',
-            'gl' => 'ID'
-        ]
-    ],
-    'query' => $musicTarget
-]);
-
-$ytWebResp = apolloHttpRequest(
-    'https://www.youtube.com/youtubei/v1/search?prettyPrint=false',
-    'POST',
-    [
-        'Content-Type: application/json',
-        'Origin: https://www.youtube.com',
-        'Referer: https://www.youtube.com/'
-    ],
-    $ytWebPayload,
-    6
-);
-
 if ($ytWebResp['code'] === 200 && !empty($ytWebResp['body'])) {
     $ytWebData = json_decode($ytWebResp['body'], true);
     $ytSections = $ytWebData['contents']['twoColumnSearchResultsRenderer']['primaryContents']['sectionListRenderer']['contents'] ?? [];
@@ -472,9 +521,10 @@ if ($ytWebResp['code'] === 200 && !empty($ytWebResp['body'])) {
 }
 
 // =========================================================================
-// FALLBACK: bin/yt-dlp if direct HTTP endpoints returned nothing
+// FALLBACK: bin/yt-dlp ONLY on local non-Vercel environments
 // =========================================================================
-if (empty($officialYtMusicTracks) && empty($unofficialYoutubeTracks) && (function_exists('exec') || function_exists('shell_exec'))) {
+$isVercelRuntime = (getenv('VERCEL') === '1' || getenv('VERCEL_ENV') !== false);
+if (!$isVercelRuntime && empty($officialYtMusicTracks) && empty($unofficialYoutubeTracks) && (function_exists('exec') || function_exists('shell_exec'))) {
     $ytDlpBin = getYtDlpBinary();
     $searchTarget = "ytsearch25:{$musicTarget}";
     $cmd = escapeshellcmd($ytDlpBin) . " --dump-json --flat-playlist --no-warnings " . escapeshellarg($searchTarget) . " 2>/dev/null";

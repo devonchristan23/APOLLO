@@ -591,8 +591,11 @@ $initialUser = apolloGetCurrentUser();
 
   <!-- ==================== BOTTOM STICKY AUDIO PLAYER BAR ==================== -->
   <footer id="player-bar">
-    <!-- Native HTML5 Audio Element (Zero IFrame / 100% Ad-Free Direct Stream) -->
+    <!-- Native HTML5 Audio Element + Headless Cloud Audio Bridge -->
     <audio id="apollo-audio" preload="metadata"></audio>
+    <div id="apollo-yt-bridge-wrap" aria-hidden="true" style="position:fixed;width:1px;height:1px;bottom:0;left:0;opacity:0.001;pointer-events:none;overflow:hidden;z-index:-1;">
+      <div id="apollo-yt-bridge"></div>
+    </div>
 
     <!-- Left: Current Track Details -->
     <div class="player-left">

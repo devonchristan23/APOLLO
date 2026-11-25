@@ -40,23 +40,26 @@ $db_port = getenv('DB_PORT') ?: '3306';
 $pdo = null;
 $db_connected = false;
 
-try {
-    // 1-second timeout to avoid hanging if MySQL is not running (e.g. in Vercel)
-    $dsn = "mysql:host={$db_host};port={$db_port};dbname={$db_name};charset=utf8mb4";
-    $options = [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_SILENT,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES   => false,
-        PDO::ATTR_TIMEOUT            => 1,
-    ];
-    
-    // Test if MySQL is reachable
-    $pdo = new PDO($dsn, $db_user, $db_pass, $options);
-    $db_connected = true;
-} catch (Throwable $e) {
-    // Graceful fallback: MySQL unavailable (e.g. on Vercel or stopped XAMPP)
-    $pdo = null;
-    $db_connected = false;
+// Skip localhost MySQL connection attempt on Vercel serverless unless a remote DB_HOST is configured
+$isVercelEnv = (getenv('VERCEL') === '1' || getenv('VERCEL_ENV') !== false);
+$hasExplicitRemoteDb = (getenv('DB_HOST') !== false && getenv('DB_HOST') !== '' && getenv('DB_HOST') !== '127.0.0.1' && getenv('DB_HOST') !== 'localhost');
+
+if (!$isVercelEnv || $hasExplicitRemoteDb) {
+    try {
+        $dsn = "mysql:host={$db_host};port={$db_port};dbname={$db_name};charset=utf8mb4";
+        $options = [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_SILENT,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+            PDO::ATTR_TIMEOUT            => $hasExplicitRemoteDb ? 3 : 1,
+        ];
+
+        $pdo = new PDO($dsn, $db_user, $db_pass, $options);
+        $db_connected = true;
+    } catch (Throwable $e) {
+        $pdo = null;
+        $db_connected = false;
+    }
 }
 
 /**
@@ -140,6 +143,77 @@ function apolloHttpRequest($url, $method = 'GET', $headers = [], $body = null, $
         }
     }
     return ['code' => $code, 'body' => $resp !== false ? $resp : ''];
+}
+
+/**
+ * Parallel HTTP helper (executes multiple requests concurrently via curl_multi when available)
+ */
+function apolloHttpParallel($requests, $timeout = 4) {
+    if (!function_exists('curl_multi_init')) {
+        $results = [];
+        foreach ($requests as $key => $req) {
+            $results[$key] = apolloHttpRequest(
+                $req['url'],
+                $req['method'] ?? 'GET',
+                $req['headers'] ?? [],
+                $req['body'] ?? null,
+                $req['timeout'] ?? $timeout
+            );
+        }
+        return $results;
+    }
+
+    $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+    $defaultHeaders = [
+        'Accept-Language: en-US,en;q=0.9',
+        'Cookie: SOCS=CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AxGgJlbiACGgYIgJnPpwY; CONSENT=YES+cb.20210328-17-p0.en+FX+100'
+    ];
+
+    $mh = curl_multi_init();
+    $handles = [];
+
+    foreach ($requests as $key => $req) {
+        $ch = curl_init($req['url']);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $req['timeout'] ?? $timeout);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        if (defined('CURL_IPRESOLVE_V4')) {
+            curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+        }
+        curl_setopt($ch, CURLOPT_USERAGENT, $ua);
+        $method = strtoupper($req['method'] ?? 'GET');
+        if ($method === 'POST') {
+            curl_setopt($ch, CURLOPT_POST, true);
+            if (isset($req['body']) && $req['body'] !== null) {
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $req['body']);
+            }
+        }
+        $mergedHeaders = array_merge($defaultHeaders, $req['headers'] ?? []);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $mergedHeaders);
+        curl_multi_add_handle($mh, $ch);
+        $handles[$key] = $ch;
+    }
+
+    $running = null;
+    do {
+        $status = curl_multi_exec($mh, $running);
+        if ($running > 0) {
+            curl_multi_select($mh, 0.2);
+        }
+    } while ($running > 0 && $status === CURLM_OK);
+
+    $results = [];
+    foreach ($handles as $key => $ch) {
+        $body = curl_multi_getcontent($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $results[$key] = ['code' => $code, 'body' => $body !== false ? $body : ''];
+        curl_multi_remove_handle($mh, $ch);
+        curl_close($ch);
+    }
+    curl_multi_close($mh);
+    return $results;
 }
 
 /**
