@@ -1,14 +1,13 @@
 <?php
 /**
- * APOLLO — Service Mesin Pencari Lagu (Multi-Source Parallel Search)
- * Prioritas 1: Lagu resmi YouTube Music (dengan cover album persegi 544x544)
- * Prioritas 2: Lagu dari YouTube reguler / komunitas (ditempatkan di bawah lagu resmi)
+ * APOLLO — Service Mesin Pencari Lagu, Album Resmi, Artis, & Playlist Komunitas
+ * Mendukung 4 tab pencarian: Tracks | Albums | Artists | Playlists
  */
 
 /**
  * Ekstrak hasil lagu resmi dari response JSON YouTube Music (WEB_REMIX)
  */
-function apolloExtractYtmSearchTracks($ytmBody, $query, &$seenIds, &$officialTracks, &$unofficialTracks) {
+function apolloExtractYtmSearchTracks($ytmBody, $query, &$seenIds, &$officialTracks, &$unofficialTracks, $maxOfficial = 6) {
     $ytmData = json_decode($ytmBody, true);
     $sections = $ytmData['contents']['tabbedSearchResultsRenderer']['tabs'][0]['tabRenderer']['content']['sectionListRenderer']['contents'] ?? [];
 
@@ -32,7 +31,7 @@ function apolloExtractYtmSearchTracks($ytmBody, $query, &$seenIds, &$officialTra
                 $unofficialTracks[] = $parsed;
             }
 
-            if (count($officialTracks) >= 14) {
+            if (count($officialTracks) >= $maxOfficial) {
                 return;
             }
         }
@@ -42,7 +41,7 @@ function apolloExtractYtmSearchTracks($ytmBody, $query, &$seenIds, &$officialTra
 /**
  * Tambahan lagu resmi dari Piped Music Songs jika IP server kena pembatasan rate-limit
  */
-function apolloExtractPipedMusicTracks($pipedBody, $query, &$seenIds, &$officialTracks) {
+function apolloExtractPipedMusicTracks($pipedBody, $query, &$seenIds, &$officialTracks, $maxOfficial = 6) {
     $pipedData = json_decode($pipedBody, true);
     foreach (($pipedData['items'] ?? []) as $pItem) {
         $vId = '';
@@ -74,14 +73,14 @@ function apolloExtractPipedMusicTracks($pipedBody, $query, &$seenIds, &$official
             'is_official' => true
         ];
 
-        if (count($officialTracks) >= 14) break;
+        if (count($officialTracks) >= $maxOfficial) break;
     }
 }
 
 /**
- * Ekstrak video musik umum dari response JSON YouTube Web (WEB)
+ * Ekstrak video musik dari response JSON YouTube Web (WEB)
  */
-function apolloExtractYoutubeWebTracks($ytWebBody, $query, &$seenIds, &$officialTracks, &$unofficialTracks) {
+function apolloExtractYoutubeWebTracks($ytWebBody, $query, &$seenIds, &$officialTracks, &$unofficialTracks, $maxOfficial = 6, $maxYoutube = 10) {
     $ytWebData = json_decode($ytWebBody, true);
     $ytSections = $ytWebData['contents']['twoColumnSearchResultsRenderer']['primaryContents']['sectionListRenderer']['contents'] ?? [];
 
@@ -101,7 +100,6 @@ function apolloExtractYoutubeWebTracks($ytWebBody, $query, &$seenIds, &$official
             $uploader = $v['ownerText']['runs'][0]['text'] ?? ($v['longBylineText']['runs'][0]['text'] ?? '');
             $lenText = $v['lengthText']['simpleText'] ?? '';
 
-            // Lewati live stream tanpa durasi
             if (empty($lenText)) continue;
 
             list($durationSec, $formattedDur) = apolloParseDurationText($lenText);
@@ -125,20 +123,20 @@ function apolloExtractYoutubeWebTracks($ytWebBody, $query, &$seenIds, &$official
                 'video_id'    => $vId,
                 'title'       => $cleanTitle,
                 'artist'      => $cleanArtist,
-                'album'       => $isTopicChannel ? 'YouTube Music Archive' : 'YouTube Video',
+                'album'       => $isTopicChannel ? 'YouTube Music' : 'Video dari YouTube',
                 'duration'    => $formattedDur,
                 'thumbnail'   => $thumb,
                 'source'      => $isTopicChannel ? 'youtube_music' : 'youtube',
                 'is_official' => $isTopicChannel
             ];
 
-            if ($isTopicChannel && count($officialTracks) < 14) {
+            if ($isTopicChannel && count($officialTracks) < $maxOfficial) {
                 $officialTracks[] = $trackItem;
             } else {
                 $unofficialTracks[] = $trackItem;
             }
 
-            if (count($unofficialTracks) >= 10) {
+            if (count($unofficialTracks) >= $maxYoutube) {
                 return;
             }
         }
@@ -154,7 +152,7 @@ function apolloFallbackYtDlpSearch($musicTarget, $query, &$seenIds, &$officialTr
     }
 
     $ytDlpBin = getYtDlpBinary();
-    $cmd = escapeshellcmd($ytDlpBin) . ' --dump-json --flat-playlist --no-warnings ' . escapeshellarg("ytsearch25:{$musicTarget}") . ' 2>/dev/null';
+    $cmd = escapeshellcmd($ytDlpBin) . ' --dump-json --flat-playlist --no-warnings ' . escapeshellarg("ytsearch20:{$musicTarget}") . ' 2>/dev/null';
 
     $lines = [];
     @exec($cmd, $lines);
@@ -191,7 +189,7 @@ function apolloFallbackYtDlpSearch($musicTarget, $query, &$seenIds, &$officialTr
             'video_id'    => $vId,
             'title'       => $cleanTitle,
             'artist'      => $cleanArtist,
-            'album'       => $isTopic ? 'YouTube Music Archive' : 'YouTube Video',
+            'album'       => $isTopic ? 'YouTube Music' : 'Video dari YouTube',
             'duration'    => formatSeconds($durationSec),
             'thumbnail'   => $thumb,
             'source'      => $isTopic ? 'youtube_music' : 'youtube',
@@ -201,12 +199,12 @@ function apolloFallbackYtDlpSearch($musicTarget, $query, &$seenIds, &$officialTr
         if ($isTopic) $officialTracks[] = $item;
         else $unofficialTracks[] = $item;
 
-        if ((count($officialTracks) + count($unofficialTracks)) >= 20) break;
+        if ((count($officialTracks) + count($unofficialTracks)) >= 16) break;
     }
 }
 
 /**
- * Fungsi utama pencarian lagu & artis
+ * TAB 1: Pencarian Lagu (Tracks / Songs — YouTube Music di atas, Video YouTube tepat di bawahnya)
  */
 function apolloSearchTracksAndArtists($query) {
     $musicTarget = buildMusicSearchQuery($query);
@@ -214,7 +212,10 @@ function apolloSearchTracksAndArtists($query) {
     $officialTracks = [];
     $unofficialTracks = [];
 
-    // 1. Jalankan request YouTube Music + YouTube Web secara paralel (~1.0 - 1.4 detik)
+    // Batasi 6 lagu resmi di blok atas agar video dari YouTube langsung terlihat dekat di bawahnya
+    $maxOfficial = 6;
+    $maxYoutube  = 10;
+
     $parallelRes = apolloHttpParallel([
         'ytm' => [
             'url'     => 'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
@@ -240,14 +241,13 @@ function apolloSearchTracksAndArtists($query) {
     ], 5);
 
     if (($parallelRes['ytm']['code'] ?? 0) === 200 && !empty($parallelRes['ytm']['body'])) {
-        apolloExtractYtmSearchTracks($parallelRes['ytm']['body'], $query, $seenIds, $officialTracks, $unofficialTracks);
+        apolloExtractYtmSearchTracks($parallelRes['ytm']['body'], $query, $seenIds, $officialTracks, $unofficialTracks, $maxOfficial);
     }
 
     if (($parallelRes['ytweb']['code'] ?? 0) === 200 && !empty($parallelRes['ytweb']['body'])) {
-        apolloExtractYoutubeWebTracks($parallelRes['ytweb']['body'], $query, $seenIds, $officialTracks, $unofficialTracks);
+        apolloExtractYoutubeWebTracks($parallelRes['ytweb']['body'], $query, $seenIds, $officialTracks, $unofficialTracks, $maxOfficial, $maxYoutube);
     }
 
-    // Fallback ke Piped Music Songs hanya jika YouTube Music kosong (misal terkena rate-limit cloud)
     if (empty($officialTracks)) {
         $pipedSongsResp = apolloHttpRequest(
             'https://api.piped.private.coffee/search?q=' . urlencode($musicTarget) . '&filter=music_songs',
@@ -257,7 +257,7 @@ function apolloSearchTracksAndArtists($query) {
             3
         );
         if ($pipedSongsResp['code'] === 200 && !empty($pipedSongsResp['body'])) {
-            apolloExtractPipedMusicTracks($pipedSongsResp['body'], $query, $seenIds, $officialTracks);
+            apolloExtractPipedMusicTracks($pipedSongsResp['body'], $query, $seenIds, $officialTracks, $maxOfficial);
         }
     }
 
@@ -265,31 +265,238 @@ function apolloSearchTracksAndArtists($query) {
         apolloFallbackYtDlpSearch($musicTarget, $query, $seenIds, $officialTracks, $unofficialTracks);
     }
 
-    // 2. Gabungkan: lagu resmi YouTube Music di atas, video YouTube di bawah
-    $results = array_slice(array_merge($officialTracks, $unofficialTracks), 0, 24);
-
-    // 3. Susun maksimal 4 kartu artis dari hasil teratas
-    $foundArtists = [];
-    $artistsList = [];
-    foreach ($results as $r) {
-        $artName = trim($r['artist']);
-        $lowName = strtolower($artName);
-        if (!isset($foundArtists[$lowName]) && count($artistsList) < 4) {
-            $foundArtists[$lowName] = true;
-            $artistsList[] = [
-                'name'     => strtoupper($artName),
-                'key'      => $artName,
-                'location' => !empty($r['is_official']) ? 'YOUTUBE MUSIC · OFFICIAL' : 'YOUTUBE ARCHIVE',
-                'photo'    => $r['thumbnail'],
-                'genre'    => !empty($r['album']) ? strtoupper($r['album']) : 'AUDIO RECORDING'
-            ];
-        }
-    }
+    $results = array_slice(array_merge($officialTracks, $unofficialTracks), 0, 18);
 
     return [
         'tracks'           => $results,
         'official_count'   => count($officialTracks),
-        'unofficial_count' => count($unofficialTracks),
-        'artists'          => $artistsList
+        'unofficial_count' => count($unofficialTracks)
     ];
+}
+
+/**
+ * Helper: Parse daftar Album Resmi dari body JSON YouTube Music (params: EgWKAQIYAWoKEAkQBRAKEAMQBA==)
+ */
+function apolloParseYtmAlbumsFromBody($body, $limit = 16) {
+    $data = json_decode($body, true);
+    $sections = $data['contents']['tabbedSearchResultsRenderer']['tabs'][0]['tabRenderer']['content']['sectionListRenderer']['contents'] ?? [];
+    $albums = [];
+    $seen = [];
+
+    foreach ($sections as $sec) {
+        foreach (($sec['musicShelfRenderer']['contents'] ?? []) as $item) {
+            $r = $item['musicResponsiveListItemRenderer'] ?? null;
+            if (!$r) continue;
+
+            $browseId = $r['navigationEndpoint']['browseEndpoint']['browseId'] ?? '';
+            if ($browseId === '' || isset($seen[$browseId])) continue;
+
+            $title = '';
+            foreach (($r['flexColumns'][0]['musicResponsiveListItemFlexColumnRenderer']['text']['runs'] ?? []) as $tr) {
+                $title .= ($tr['text'] ?? '');
+            }
+            $title = trim($title);
+            if ($title === '') continue;
+
+            $segments = [];
+            $cur = '';
+            foreach (($r['flexColumns'][1]['musicResponsiveListItemFlexColumnRenderer']['text']['runs'] ?? []) as $mr) {
+                $txt = $mr['text'] ?? '';
+                if (trim($txt) === '•' || $txt === ' • ') {
+                    if (trim($cur) !== '') $segments[] = trim($cur);
+                    $cur = '';
+                } else {
+                    $cur .= $txt;
+                }
+            }
+            if (trim($cur) !== '') $segments[] = trim($cur);
+
+            $releaseType = $segments[0] ?? 'Album';
+            $artist      = $segments[1] ?? 'Various Artists';
+            $year        = $segments[2] ?? '';
+
+            $thumbs = $r['thumbnail']['musicThumbnailRenderer']['thumbnail']['thumbnails'] ?? [];
+            $lastT = (!empty($thumbs) && is_array($thumbs)) ? end($thumbs) : null;
+            $artwork = apolloUpgradeYtmThumb($lastT['url'] ?? '');
+            if ($artwork === '') continue;
+
+            $seen[$browseId] = true;
+            $albums[] = [
+                'browse_id'    => $browseId,
+                'title'        => $title,
+                'artist'       => $artist,
+                'year'         => $year,
+                'release_type' => strtoupper($releaseType),
+                'artwork'      => $artwork
+            ];
+
+            if (count($albums) >= $limit) break 2;
+        }
+    }
+
+    // Prioritaskan Full Album & EP di atas Single
+    usort($albums, function ($a, $b) {
+        $rank = function ($t) {
+            if ($t === 'ALBUM') return 0;
+            if ($t === 'EP') return 1;
+            return 2;
+        };
+        return $rank($a['release_type']) <=> $rank($b['release_type']);
+    });
+
+    return $albums;
+}
+
+/**
+ * Helper: Parse daftar Artis dari body JSON YouTube Music (params: EgWKAQIgAWoKEAkQBRAKEAMQBA==)
+ */
+function apolloParseYtmArtistsFromBody($body, $limit = 16) {
+    $data = json_decode($body, true);
+    $sections = $data['contents']['tabbedSearchResultsRenderer']['tabs'][0]['tabRenderer']['content']['sectionListRenderer']['contents'] ?? [];
+    $artists = [];
+    $seen = [];
+
+    foreach ($sections as $sec) {
+        foreach (($sec['musicShelfRenderer']['contents'] ?? []) as $item) {
+            $r = $item['musicResponsiveListItemRenderer'] ?? null;
+            if (!$r) continue;
+
+            $browseId = $r['navigationEndpoint']['browseEndpoint']['browseId'] ?? '';
+            $name = '';
+            foreach (($r['flexColumns'][0]['musicResponsiveListItemFlexColumnRenderer']['text']['runs'] ?? []) as $tr) {
+                $name .= ($tr['text'] ?? '');
+            }
+            $name = trim($name);
+            if ($name === '') continue;
+
+            $dedupeKey = $browseId !== '' ? $browseId : strtolower($name);
+            if (isset($seen[$dedupeKey])) continue;
+
+            $subtitle = '';
+            foreach (($r['flexColumns'][1]['musicResponsiveListItemFlexColumnRenderer']['text']['runs'] ?? []) as $mr) {
+                $subtitle .= ($mr['text'] ?? '');
+            }
+            $subtitle = trim(preg_replace('/^Artist\s*•\s*/i', '', $subtitle));
+
+            $thumbs = $r['thumbnail']['musicThumbnailRenderer']['thumbnail']['thumbnails'] ?? [];
+            $lastT = (!empty($thumbs) && is_array($thumbs)) ? end($thumbs) : null;
+            $photo = apolloUpgradeYtmThumb($lastT['url'] ?? '');
+
+            $seen[$dedupeKey] = true;
+            $artists[] = [
+                'browse_id' => $browseId,
+                'name'      => $name,
+                'subtitle'  => $subtitle ?: 'YouTube Music Artist',
+                'photo'     => $photo
+            ];
+
+            if (count($artists) >= $limit) break 2;
+        }
+    }
+
+    return $artists;
+}
+
+/**
+ * TAB 2: Pencarian Album Resmi dari Band / Artis
+ */
+function apolloSearchAlbums($query, $limit = 16) {
+    $musicTarget = buildMusicSearchQuery($query);
+    $resp = apolloHttpRequest(
+        'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
+        'POST',
+        apolloInnertubeHeaders('https://music.youtube.com'),
+        json_encode([
+            'context' => apolloBuildInnertubeContext('WEB_REMIX', '1.20241028.01.00'),
+            'query'   => $musicTarget,
+            'params'  => 'EgWKAQIYAWoKEAkQBRAKEAMQBA=='
+        ]),
+        5
+    );
+    if ($resp['code'] !== 200 || empty($resp['body'])) return [];
+    return apolloParseYtmAlbumsFromBody($resp['body'], $limit);
+}
+
+/**
+ * TAB 3: Pencarian Artis yang Namanya Sesuai Kata Kunci
+ */
+function apolloSearchArtists($query, $limit = 16) {
+    $musicTarget = buildMusicSearchQuery($query);
+    $resp = apolloHttpRequest(
+        'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
+        'POST',
+        apolloInnertubeHeaders('https://music.youtube.com'),
+        json_encode([
+            'context' => apolloBuildInnertubeContext('WEB_REMIX', '1.20241028.01.00'),
+            'query'   => $musicTarget,
+            'params'  => 'EgWKAQIgAWoKEAkQBRAKEAMQBA=='
+        ]),
+        5
+    );
+    if ($resp['code'] !== 200 || empty($resp['body'])) return [];
+    return apolloParseYtmArtistsFromBody($resp['body'], $limit);
+}
+
+/**
+ * TAB 4: Pencarian Playlist Komunitas YouTube Music
+ */
+function apolloSearchCommunityPlaylists($query, $limit = 16) {
+    $musicTarget = buildMusicSearchQuery($query);
+    $resp = apolloHttpRequest(
+        'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
+        'POST',
+        apolloInnertubeHeaders('https://music.youtube.com'),
+        json_encode([
+            'context' => apolloBuildInnertubeContext('WEB_REMIX', '1.20241028.01.00'),
+            'query'   => $musicTarget,
+            'params'  => 'EgWKAQIoAWoKEAkQBRAKEAMQBA=='
+        ]),
+        5
+    );
+    if ($resp['code'] !== 200 || empty($resp['body'])) return [];
+
+    $data = json_decode($resp['body'], true);
+    $sections = $data['contents']['tabbedSearchResultsRenderer']['tabs'][0]['tabRenderer']['content']['sectionListRenderer']['contents'] ?? [];
+    $playlists = [];
+    $seen = [];
+
+    foreach ($sections as $sec) {
+        foreach (($sec['musicShelfRenderer']['contents'] ?? []) as $item) {
+            $r = $item['musicResponsiveListItemRenderer'] ?? null;
+            if (!$r) continue;
+
+            $browseId = $r['navigationEndpoint']['browseEndpoint']['browseId'] ?? '';
+            if ($browseId === '' || isset($seen[$browseId])) continue;
+
+            $title = '';
+            foreach (($r['flexColumns'][0]['musicResponsiveListItemFlexColumnRenderer']['text']['runs'] ?? []) as $tr) {
+                $title .= ($tr['text'] ?? '');
+            }
+            $title = trim($title);
+            if ($title === '') continue;
+
+            $subtitle = '';
+            foreach (($r['flexColumns'][1]['musicResponsiveListItemFlexColumnRenderer']['text']['runs'] ?? []) as $mr) {
+                $subtitle .= ($mr['text'] ?? '');
+            }
+            $subtitle = trim(preg_replace('/^Playlist\s*•\s*/i', '', $subtitle));
+
+            $thumbs = $r['thumbnail']['musicThumbnailRenderer']['thumbnail']['thumbnails'] ?? [];
+            $lastT = (!empty($thumbs) && is_array($thumbs)) ? end($thumbs) : null;
+            $artwork = apolloUpgradeYtmThumb($lastT['url'] ?? '');
+            if ($artwork === '') continue;
+
+            $seen[$browseId] = true;
+            $playlists[] = [
+                'browse_id' => $browseId,
+                'title'     => $title,
+                'creator'   => $subtitle ?: 'YouTube Music Community',
+                'artwork'   => $artwork
+            ];
+
+            if (count($playlists) >= $limit) break 2;
+        }
+    }
+
+    return $playlists;
 }

@@ -1,8 +1,11 @@
 <?php
 /**
- * APOLLO — Service Profil & Diskografi Artis
- * Menyusun biodata artis serta daftar lagu resminya dari YouTube Music / yt-dlp lokal.
+ * APOLLO — Service Profil, Album Resmi, & Artis Terkait
+ * Menembak 3 endpoint YouTube Music secara paralel (~0.9 detik) agar saat user klik artis
+ * di bawah lagu mana pun, langsung muncul lagu, album resmi, dan daftar artisnya.
  */
+
+require_once __DIR__ . '/search_service.php';
 
 function apolloGetCuratedArtistCatalog() {
     return [
@@ -43,31 +46,58 @@ function apolloBuildArtistDossier($name) {
 
     $meta = $curated[$key] ?? [
         'name'       => strtoupper($name),
-        'location'   => 'GLOBAL ARTIST CATALOG',
-        'desc'       => 'Industrial audio archive and discography master recordings for ' . htmlspecialchars($name) . '. Pure analog and high-fidelity signal master tape recordings.',
+        'location'   => 'YOUTUBE MUSIC · ARTIST CATALOG',
+        'desc'       => 'Official songs, studio albums, and matching artist profiles for ' . htmlspecialchars($name) . '.',
         'photo'      => '',
         'catalog_id' => 'APOLLO-REF-' . strtoupper(substr(md5($name), 0, 8))
     ];
 
     $artistTracks = [];
+    $artistAlbums = [];
+    $relatedArtists = [];
     $firstThumb = '';
     $seenIds = [];
 
-    // 1. Ambil lagu resmi artis dari YouTube Music (~0.8 detik, jalan di lokal maupun Vercel)
-    $ytmResp = apolloHttpRequest(
-        'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
-        'POST',
-        apolloInnertubeHeaders('https://music.youtube.com'),
-        json_encode([
-            'context' => apolloBuildInnertubeContext('WEB_REMIX', '1.20241028.01.00'),
-            'query'   => $name,
-            'params'  => 'EgWKAQIIAWoKEAkQBRAKEAMQBA=='
-        ]),
-        4
-    );
+    // 1. Ambil Lagu + Album Resmi + Daftar Artis secara paralel (~0.9 detik)
+    $parallel = apolloHttpParallel([
+        'songs' => [
+            'url'     => 'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
+            'method'  => 'POST',
+            'headers' => apolloInnertubeHeaders('https://music.youtube.com'),
+            'body'    => json_encode([
+                'context' => apolloBuildInnertubeContext('WEB_REMIX', '1.20241028.01.00'),
+                'query'   => $name,
+                'params'  => 'EgWKAQIIAWoKEAkQBRAKEAMQBA=='
+            ]),
+            'timeout' => 5
+        ],
+        'albums' => [
+            'url'     => 'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
+            'method'  => 'POST',
+            'headers' => apolloInnertubeHeaders('https://music.youtube.com'),
+            'body'    => json_encode([
+                'context' => apolloBuildInnertubeContext('WEB_REMIX', '1.20241028.01.00'),
+                'query'   => $name,
+                'params'  => 'EgWKAQIYAWoKEAkQBRAKEAMQBA=='
+            ]),
+            'timeout' => 5
+        ],
+        'artists' => [
+            'url'     => 'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
+            'method'  => 'POST',
+            'headers' => apolloInnertubeHeaders('https://music.youtube.com'),
+            'body'    => json_encode([
+                'context' => apolloBuildInnertubeContext('WEB_REMIX', '1.20241028.01.00'),
+                'query'   => $name,
+                'params'  => 'EgWKAQIgAWoKEAkQBRAKEAMQBA=='
+            ]),
+            'timeout' => 5
+        ]
+    ], 5);
 
-    if ($ytmResp['code'] === 200 && !empty($ytmResp['body'])) {
-        $ytmData = json_decode($ytmResp['body'], true);
+    // Parse Lagu
+    if (($parallel['songs']['code'] ?? 0) === 200 && !empty($parallel['songs']['body'])) {
+        $ytmData = json_decode($parallel['songs']['body'], true);
         $sections = $ytmData['contents']['tabbedSearchResultsRenderer']['tabs'][0]['tabRenderer']['content']['sectionListRenderer']['contents'] ?? [];
 
         foreach ($sections as $sec) {
@@ -89,61 +119,37 @@ function apolloBuildArtistDossier($name) {
                 }
                 $artistTracks[] = $parsed;
 
-                if (count($artistTracks) >= 20) break 2;
+                if (count($artistTracks) >= 16) break 2;
             }
         }
     }
 
-    // 2. Fallback lokal menggunakan bin/yt-dlp jika diperlukan
-    if (!apolloIsVercelRuntime() && empty($artistTracks) && (function_exists('exec') || function_exists('shell_exec'))) {
-        $ytDlpBin = getYtDlpBinary();
-        $cmd = escapeshellcmd($ytDlpBin) . ' --dump-json --flat-playlist --no-warnings ' . escapeshellarg("ytsearch25:{$name}") . ' 2>/dev/null';
+    // Parse Album Resmi
+    if (($parallel['albums']['code'] ?? 0) === 200 && !empty($parallel['albums']['body'])) {
+        $artistAlbums = apolloParseYtmAlbumsFromBody($parallel['albums']['body'], 8);
+    }
 
-        $lines = [];
-        @exec($cmd, $lines);
-
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '' || $line[0] !== '{') continue;
-
-            $entry = json_decode($line, true);
-            if (!is_array($entry) || empty($entry['id'])) continue;
-
-            $vId = $entry['id'];
-            if (isset($seenIds[$vId])) continue;
-
-            $rawTitle = $entry['title'] ?? 'Master Audio Recording';
-            $uploader = $entry['uploader'] ?? $entry['channel'] ?? '';
-            $durationSec = (int)($entry['duration'] ?? 0);
-
-            if (!isLegitimateMusicTrack($rawTitle, $durationSec, $uploader, $name)) continue;
-
-            list($cleanTitle, $cleanArtist) = cleanMusicDetails($rawTitle, $uploader);
-            $thumb = "https://i.ytimg.com/vi/{$vId}/hqdefault.jpg";
-            if (!empty($entry['thumbnails']) && is_array($entry['thumbnails'])) {
-                $lastThumb = end($entry['thumbnails']);
-                if (!empty($lastThumb['url'])) $thumb = $lastThumb['url'];
-            }
-            if (empty($firstThumb)) $firstThumb = $thumb;
-
-            $seenIds[$vId] = true;
-            $artistTracks[] = [
-                'video_id'  => $vId,
-                'title'     => $cleanTitle,
-                'artist'    => !empty($cleanArtist) ? $cleanArtist : $meta['name'],
-                'album'     => 'Essential Master Tape',
-                'duration'  => formatSeconds($durationSec),
-                'thumbnail' => $thumb
-            ];
-
-            if (count($artistTracks) >= 20) break;
+    // Parse Daftar Artis & Gunakan Foto Profil Artis Resmi #1
+    if (($parallel['artists']['code'] ?? 0) === 200 && !empty($parallel['artists']['body'])) {
+        $relatedArtists = apolloParseYtmArtistsFromBody($parallel['artists']['body'], 8);
+        if (!empty($relatedArtists[0]['photo'])) {
+            $meta['photo'] = $relatedArtists[0]['photo'];
+        }
+        if (!empty($relatedArtists[0]['browse_id'])) {
+            $meta['browse_id'] = $relatedArtists[0]['browse_id'];
+        }
+        if (!empty($relatedArtists[0]['subtitle']) && !isset($curated[$key])) {
+            $meta['location'] = strtoupper($relatedArtists[0]['subtitle']);
         }
     }
 
     if (empty($meta['photo'])) {
         $meta['photo'] = !empty($firstThumb) ? $firstThumb : 'https://i.ytimg.com/vi/fJ9rUzIMcZQ/hqdefault.jpg';
     }
-    $meta['tracks'] = $artistTracks;
+
+    $meta['tracks']  = $artistTracks;
+    $meta['albums']  = $artistAlbums;
+    $meta['artists'] = $relatedArtists;
 
     return $meta;
 }

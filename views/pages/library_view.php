@@ -1,4 +1,4 @@
-    <!-- VIEW 2B: USER LIBRARY VIEW (COMMUNITY ALBUMS, USER PLAYLISTS & LIKED SONGS) -->
+    <!-- VIEW 2B: USER LIBRARY VIEW (COMMUNITY ALBUMS, USER PLAYLISTS, SAVED ALBUMS & FOLLOWED ARTISTS) -->
     <div id="view-library">
       <!-- Library Grid Overview -->
       <div id="library-grid-section">
@@ -22,11 +22,11 @@
           </div>
         </section>
 
-        <!-- Personal User Albums & Playlists -->
+        <!-- Personal User Library (Playlists, Albums, Followed Artists — NO Podcasts) -->
         <div class="section-header">
           <div class="section-title-group">
             <span class="signal-dot"></span>
-            <h2 class="section-title">YOUR LIBRARY · USER ALBUMS &amp; PLAYLISTS</h2>
+            <h2 class="section-title">YOUR LIBRARY · COLLECTIONS</h2>
           </div>
           <div class="library-header-actions">
             <span class="section-meta" id="library-meta-count">0 COLLECTIONS</span>
@@ -36,12 +36,19 @@
           </div>
         </div>
 
+        <div class="library-filter-bar" id="main-library-filters">
+          <button type="button" class="sidebar-chip active" data-main-lib-filter="all">All</button>
+          <button type="button" class="sidebar-chip" data-main-lib-filter="playlists">Playlists</button>
+          <button type="button" class="sidebar-chip" data-main-lib-filter="albums">Albums</button>
+          <button type="button" class="sidebar-chip" data-main-lib-filter="artists">Artists</button>
+        </div>
+
         <div class="albums-grid" id="library-grid">
-          <!-- Populated dynamically via player.js with Liked Songs & User-Created Playlists -->
+          <!-- Populated dynamically via player.js with Liked Songs, Playlists, Saved Albums, & Followed Artists -->
         </div>
       </div>
 
-      <!-- Playlist / User Album Detail View -->
+      <!-- Playlist / Official Album / Community Playlist Detail View -->
       <div id="library-playlist-detail" style="display: none;">
         <div class="artist-nav-bar">
           <button type="button" class="btn-back-overview" id="btn-back-library">
@@ -71,6 +78,9 @@
             <div class="artist-action-row">
               <button type="button" class="btn-play-all" id="btn-play-all-playlist">
                 ▶ PLAY ALL
+              </button>
+              <button type="button" class="btn-secondary-action" id="btn-save-album" style="display: none;">
+                + SAVE TO LIBRARY
               </button>
               <button type="button" class="btn-delete-playlist" id="btn-delete-playlist" style="display: none;">
                 DELETE PLAYLIST

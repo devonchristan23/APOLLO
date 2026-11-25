@@ -25,10 +25,16 @@ if ($action === 'tracks') {
         jsonResponse(['status' => 'error', 'message' => 'Invalid browse_id'], 400);
     }
 
+    $fallbackMeta = [
+        'artist'  => trim($_GET['artist'] ?? ''),
+        'album'   => trim($_GET['album'] ?? ''),
+        'artwork' => trim($_GET['artwork'] ?? '')
+    ];
+
     jsonResponse([
         'status'    => 'ok',
         'browse_id' => $browseId,
-        'tracks'    => apolloGetCommunityPlaylistTracks($browseId)
+        'tracks'    => apolloGetCommunityPlaylistTracks($browseId, $fallbackMeta)
     ]);
 }
 

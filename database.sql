@@ -74,3 +74,30 @@ CREATE TABLE IF NOT EXISTS `saved_tracks` (
   `added_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (`playlist_id`) REFERENCES `playlists`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 6. Table: followed_artists (Artists Followed & Saved in User Library)
+CREATE TABLE IF NOT EXISTS `followed_artists` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT DEFAULT NULL,
+  `artist_name` VARCHAR(150) NOT NULL,
+  `browse_id` VARCHAR(100) DEFAULT '',
+  `photo` VARCHAR(500) DEFAULT '',
+  `subtitle` VARCHAR(200) DEFAULT '',
+  `followed_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_follow_user` (`user_id`),
+  CONSTRAINT `fk_follow_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 7. Table: saved_albums (Official Albums Saved in User Library)
+CREATE TABLE IF NOT EXISTS `saved_albums` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT DEFAULT NULL,
+  `browse_id` VARCHAR(120) NOT NULL,
+  `title` VARCHAR(200) NOT NULL,
+  `artist` VARCHAR(150) DEFAULT '',
+  `year` VARCHAR(20) DEFAULT '',
+  `artwork` VARCHAR(500) DEFAULT '',
+  `saved_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_saved_album_user` (`user_id`),
+  CONSTRAINT `fk_saved_album_user` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

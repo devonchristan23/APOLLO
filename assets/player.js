@@ -30,11 +30,21 @@
     dbConnected: false,
     currentUser: (typeof window !== 'undefined' && window.APOLLO_INITIAL_USER) ? window.APOLLO_INITIAL_USER : null,
     playlists: [],
+    followedArtists: [],
+    savedAlbums: [],
+    sidebarLibFilter: null, // null (all) | 'playlists' | 'albums' | 'artists'
+    mainLibFilter: 'all',   // 'all' | 'playlists' | 'albums' | 'artists'
     likedTrackIds: new Set(),
     activePlaylist: null,
+    activeAlbumDetail: null,
+    activeArtistData: null,
     recentTracks: [],
     recentArtists: [],
     currentView: 'overview', // 'overview' | 'explore' | 'library' | 'artist'
+    recOffset: 0,
+    isLoadingMoreRecs: false,
+    activeSearchTab: 'tracks', // 'tracks' | 'albums' | 'artists' | 'playlists'
+    searchCache: {},
     targetPopoverTrack: null,
     popoverTriggerEl: null,
     popoverContextPlaylist: null,
@@ -81,6 +91,15 @@
     nowAddBtn: document.getElementById('btn-now-add'),
     searchInput: document.getElementById('global-search-input'),
     exploreSearchInput: document.getElementById('explore-search-input'),
+    btnRefreshPage: document.getElementById('btn-refresh-page'),
+    btnRefreshExplore: document.getElementById('btn-refresh-explore'),
+    btnGlobalRefresh: document.getElementById('btn-global-refresh'),
+    btnRecPrev: document.getElementById('btn-rec-prev'),
+    btnRecNext: document.getElementById('btn-rec-next'),
+    searchTabsBar: document.getElementById('search-tabs-bar'),
+    searchTracksPanel: document.getElementById('search-tracks-panel'),
+    searchGridPanel: document.getElementById('search-grid-panel'),
+    searchResultsGrid: document.getElementById('search-results-grid'),
     viewOverview: document.getElementById('view-overview'),
     viewExplore: document.getElementById('view-explore'),
     viewLibrary: document.getElementById('view-library'),
@@ -92,6 +111,12 @@
     tracksTableBody: document.getElementById('tracks-table-body'),
     tracksSectionTitle: document.getElementById('tracks-section-title'),
     tracksMetaCount: document.getElementById('tracks-meta-count'),
+    sidebar: document.getElementById('sidebar'),
+    sidebarResizeHandle: document.getElementById('sidebar-resize-handle'),
+    btnSidebarExpand: document.getElementById('btn-sidebar-expand'),
+    sidebarChipsTrack: document.getElementById('sidebar-lib-chips'),
+    btnSidebarChipsPrev: document.getElementById('btn-sidebar-chips-prev'),
+    btnSidebarChipsNext: document.getElementById('btn-sidebar-chips-next'),
     sidebarPlaylists: document.getElementById('sidebar-playlists-list'),
     newPlaylistBtn: document.getElementById('btn-new-playlist'),
     // Library View Elements
@@ -100,6 +125,7 @@
     btnRefreshCommunity: document.getElementById('btn-refresh-community'),
     libraryMetaCount: document.getElementById('library-meta-count'),
     btnLibraryNewPlaylist: document.getElementById('btn-library-new-playlist'),
+    mainLibraryFilters: document.getElementById('main-library-filters'),
     libraryGrid: document.getElementById('library-grid'),
     libraryPlaylistDetail: document.getElementById('library-playlist-detail'),
     btnBackLibrary: document.getElementById('btn-back-library'),
@@ -110,6 +136,7 @@
     playlistDetailTitle: document.getElementById('playlist-detail-title'),
     playlistDetailDesc: document.getElementById('playlist-detail-desc'),
     btnPlayAllPlaylist: document.getElementById('btn-play-all-playlist'),
+    btnSaveAlbum: document.getElementById('btn-save-album'),
     btnDeletePlaylist: document.getElementById('btn-delete-playlist'),
     playlistDetailCountBadge: document.getElementById('playlist-detail-count-badge'),
     playlistTracksHeading: document.getElementById('playlist-tracks-heading'),
@@ -121,9 +148,17 @@
     artistLocation: document.getElementById('artist-location'),
     artistBio: document.getElementById('artist-bio'),
     artistCatalogId: document.getElementById('artist-catalog-id'),
+    artistAlbumsSection: document.getElementById('artist-albums-section'),
+    artistAlbumsGrid: document.getElementById('artist-albums-grid'),
+    artistAlbumsMeta: document.getElementById('artist-albums-meta'),
+    artistTracksMeta: document.getElementById('artist-tracks-meta'),
     artistTracksBody: document.getElementById('artist-tracks-body'),
+    artistRelatedSection: document.getElementById('artist-related-section'),
+    artistRelatedGrid: document.getElementById('artist-related-grid'),
+    artistRelatedMeta: document.getElementById('artist-related-meta'),
     btnBackOverview: document.getElementById('btn-back-overview'),
     btnPlayAllArtist: document.getElementById('btn-play-all-artist'),
+    btnFollowArtist: document.getElementById('btn-follow-artist'),
     // Popover & Toast Elements
     playlistPopover: document.getElementById('playlist-popover'),
     popoverHeaderLabel: document.getElementById('popover-header-label'),
@@ -186,6 +221,7 @@
     // Attach Event Listeners immediately so UI is responsive
     setupAudioListeners();
     setupUIListeners();
+    setupSidebarResizeAndChips();
     setupMediaSession();
 
     // Load Playlists & Live YouTube Music Recommendations in parallel
@@ -228,6 +264,195 @@
 
   function getPlaylistTracksStorageKey(playlistId) {
     return `apollo_pl_${getLocalStorageScope()}_${playlistId}_tracks`;
+  }
+
+  function getFollowedArtistsStorageKey() {
+    return `apollo_followed_artists_${getLocalStorageScope()}`;
+  }
+
+  function getSavedAlbumsStorageKey() {
+    return `apollo_saved_albums_${getLocalStorageScope()}`;
+  }
+
+  function saveLibraryCollectionsToLocalStorage() {
+    if (state.dbConnected) return;
+    try {
+      localStorage.setItem(getFollowedArtistsStorageKey(), JSON.stringify(state.followedArtists));
+      localStorage.setItem(getSavedAlbumsStorageKey(), JSON.stringify(state.savedAlbums));
+    } catch (e) {}
+  }
+
+  function isArtistFollowed(artistName) {
+    const key = String(artistName || '').trim().toLowerCase();
+    if (!key) return false;
+    return state.followedArtists.some(a => String(a.name || '').trim().toLowerCase() === key);
+  }
+
+  function isAlbumSaved(browseId) {
+    if (!browseId) return false;
+    return state.savedAlbums.some(a => String(a.browse_id) === String(browseId));
+  }
+
+  async function loadLibraryCollections() {
+    if (state.dbConnected) {
+      try {
+        const res = await fetch('api/playlist.php?action=get_library_collections');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'ok') {
+            state.followedArtists = Array.isArray(data.followed_artists) ? data.followed_artists : [];
+            state.savedAlbums = Array.isArray(data.saved_albums) ? data.saved_albums : [];
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+
+    try {
+      state.followedArtists = JSON.parse(localStorage.getItem(getFollowedArtistsStorageKey()) || '[]') || [];
+    } catch (e) {
+      state.followedArtists = [];
+    }
+    try {
+      state.savedAlbums = JSON.parse(localStorage.getItem(getSavedAlbumsStorageKey()) || '[]') || [];
+    } catch (e) {
+      state.savedAlbums = [];
+    }
+  }
+
+  async function toggleFollowArtist(artistObj) {
+    if (!artistObj || !artistObj.name) return false;
+    const cleanName = String(artistObj.name).trim();
+    const key = cleanName.toLowerCase();
+    const currentlyFollowing = isArtistFollowed(cleanName);
+
+    if (state.dbConnected) {
+      try {
+        const res = await fetch('api/playlist.php?action=toggle_follow_artist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: cleanName,
+            browse_id: artistObj.browse_id || '',
+            photo: artistObj.photo || '',
+            subtitle: artistObj.subtitle || 'Artist'
+          })
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          if (data.following && data.artist) {
+            state.followedArtists = [
+              data.artist,
+              ...state.followedArtists.filter(a => String(a.name || '').trim().toLowerCase() !== key)
+            ];
+            showToast(`FOLLOWING "${cleanName.toUpperCase()}" · SAVED TO LIBRARY`);
+          } else {
+            state.followedArtists = state.followedArtists.filter(a => String(a.name || '').trim().toLowerCase() !== key);
+            showToast(`UNFOLLOWED "${cleanName.toUpperCase()}"`);
+          }
+          syncFollowUI();
+          return Boolean(data.following);
+        }
+      } catch (e) {}
+    }
+
+    if (currentlyFollowing) {
+      state.followedArtists = state.followedArtists.filter(a => String(a.name || '').trim().toLowerCase() !== key);
+      showToast(`UNFOLLOWED "${cleanName.toUpperCase()}"`);
+    } else {
+      state.followedArtists.unshift({
+        id: Date.now(),
+        name: cleanName,
+        browse_id: artistObj.browse_id || '',
+        photo: artistObj.photo || DEFAULT_FALLBACK_THUMB,
+        subtitle: artistObj.subtitle || 'Artist'
+      });
+      showToast(`FOLLOWING "${cleanName.toUpperCase()}" · SAVED TO LIBRARY`);
+    }
+    saveLibraryCollectionsToLocalStorage();
+    syncFollowUI();
+    return !currentlyFollowing;
+  }
+
+  function syncFollowUI() {
+    renderSidebarPlaylists();
+    if (state.currentView === 'library' && DOM.libraryGridSection && DOM.libraryGridSection.style.display !== 'none') {
+      renderLibraryGrid();
+    }
+    if (state.activeArtistData && DOM.btnFollowArtist) {
+      const followed = isArtistFollowed(state.activeArtistData.name);
+      DOM.btnFollowArtist.classList.toggle('following', followed);
+      DOM.btnFollowArtist.textContent = followed ? '✓ FOLLOWING · IN LIBRARY' : '+ FOLLOW ARTIST';
+    }
+    document.querySelectorAll('.btn-card-follow[data-artist-name]').forEach(btn => {
+      const followed = isArtistFollowed(btn.dataset.artistName);
+      btn.classList.toggle('following', followed);
+      btn.textContent = followed ? '✓ FOLLOWING' : '+ FOLLOW';
+    });
+  }
+
+  async function toggleSaveAlbum(albumObj) {
+    if (!albumObj || !albumObj.browse_id || !albumObj.title) return false;
+    const bid = String(albumObj.browse_id);
+    const currentlySaved = isAlbumSaved(bid);
+
+    if (state.dbConnected) {
+      try {
+        const res = await fetch('api/playlist.php?action=toggle_save_album', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            browse_id: bid,
+            title: albumObj.title,
+            artist: albumObj.artist || '',
+            year: albumObj.year || '',
+            artwork: albumObj.artwork || ''
+          })
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+          if (data.saved && data.album) {
+            state.savedAlbums = [data.album, ...state.savedAlbums.filter(a => String(a.browse_id) !== bid)];
+            showToast(`ALBUM "${albumObj.title.toUpperCase()}" SAVED TO LIBRARY`);
+          } else {
+            state.savedAlbums = state.savedAlbums.filter(a => String(a.browse_id) !== bid);
+            showToast(`ALBUM "${albumObj.title.toUpperCase()}" REMOVED FROM LIBRARY`);
+          }
+          syncSavedAlbumUI();
+          return Boolean(data.saved);
+        }
+      } catch (e) {}
+    }
+
+    if (currentlySaved) {
+      state.savedAlbums = state.savedAlbums.filter(a => String(a.browse_id) !== bid);
+      showToast(`ALBUM "${albumObj.title.toUpperCase()}" REMOVED FROM LIBRARY`);
+    } else {
+      state.savedAlbums.unshift({
+        id: Date.now(),
+        browse_id: bid,
+        title: albumObj.title,
+        artist: albumObj.artist || 'Official Artist',
+        year: albumObj.year || '',
+        artwork: albumObj.artwork || DEFAULT_FALLBACK_THUMB
+      });
+      showToast(`ALBUM "${albumObj.title.toUpperCase()}" SAVED TO LIBRARY`);
+    }
+    saveLibraryCollectionsToLocalStorage();
+    syncSavedAlbumUI();
+    return !currentlySaved;
+  }
+
+  function syncSavedAlbumUI() {
+    renderSidebarPlaylists();
+    if (state.currentView === 'library' && DOM.libraryGridSection && DOM.libraryGridSection.style.display !== 'none') {
+      renderLibraryGrid();
+    }
+    if (state.activeAlbumDetail && DOM.btnSaveAlbum) {
+      const saved = isAlbumSaved(state.activeAlbumDetail.browse_id);
+      DOM.btnSaveAlbum.classList.toggle('following', saved);
+      DOM.btnSaveAlbum.textContent = saved ? '✓ SAVED IN LIBRARY' : '+ SAVE ALBUM TO LIBRARY';
+    }
   }
 
   function savePlaylistsToLocalStorage() {
@@ -416,7 +641,102 @@
       if (latestCover) likedPl.cover_thumb = latestCover.thumbnail;
     }
 
+    await loadLibraryCollections();
     renderSidebarPlaylists();
+  }
+
+  /**
+   * Setup Resizable Sidebar ("Your Library") & Scrollable Filter Chips (Playlists | Albums | Artists)
+   */
+  function setupSidebarResizeAndChips() {
+    const applySidebarWidth = (px) => {
+      const clamped = Math.max(210, Math.min(400, Math.round(px)));
+      document.documentElement.style.setProperty('--sidebar-w', `${clamped}px`);
+      if (DOM.sidebar) {
+        DOM.sidebar.classList.toggle('sidebar-compact', clamped < 265);
+      }
+      try { localStorage.setItem('apollo_sidebar_width', String(clamped)); } catch (e) {}
+      updateSidebarChipsArrows();
+    };
+
+    const updateSidebarChipsArrows = () => {
+      const track = DOM.sidebarChipsTrack;
+      if (!track) return;
+      const canScrollLeft = track.scrollLeft > 4;
+      const canScrollRight = track.scrollLeft + track.clientWidth < track.scrollWidth - 4;
+      if (DOM.btnSidebarChipsPrev) DOM.btnSidebarChipsPrev.style.display = canScrollLeft ? 'inline-flex' : 'none';
+      if (DOM.btnSidebarChipsNext) DOM.btnSidebarChipsNext.style.display = canScrollRight ? 'inline-flex' : 'none';
+    };
+
+    try {
+      const savedW = parseInt(localStorage.getItem('apollo_sidebar_width') || '248', 10);
+      if (savedW >= 210 && savedW <= 400) {
+        applySidebarWidth(savedW);
+      }
+    } catch (e) {}
+
+    if (DOM.sidebarResizeHandle) {
+      let dragging = false;
+      DOM.sidebarResizeHandle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        dragging = true;
+        document.body.classList.add('sidebar-resizing');
+      });
+      window.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        applySidebarWidth(e.clientX);
+      });
+      window.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        document.body.classList.remove('sidebar-resizing');
+      });
+    }
+
+    if (DOM.btnSidebarExpand) {
+      DOM.btnSidebarExpand.addEventListener('click', () => {
+        const curW = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w'), 10) || 240;
+        applySidebarWidth(curW < 300 ? 340 : 230);
+      });
+    }
+
+    if (DOM.sidebarChipsTrack) {
+      DOM.sidebarChipsTrack.addEventListener('scroll', updateSidebarChipsArrows);
+      window.addEventListener('resize', updateSidebarChipsArrows);
+      setTimeout(updateSidebarChipsArrows, 150);
+    }
+
+    if (DOM.btnSidebarChipsPrev && DOM.sidebarChipsTrack) {
+      DOM.btnSidebarChipsPrev.addEventListener('click', () => {
+        DOM.sidebarChipsTrack.scrollBy({ left: -110, behavior: 'smooth' });
+      });
+    }
+    if (DOM.btnSidebarChipsNext && DOM.sidebarChipsTrack) {
+      DOM.btnSidebarChipsNext.addEventListener('click', () => {
+        DOM.sidebarChipsTrack.scrollBy({ left: 110, behavior: 'smooth' });
+      });
+    }
+
+    document.querySelectorAll('#sidebar-lib-chips .sidebar-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const filterVal = chip.dataset.libFilter;
+        state.sidebarLibFilter = (state.sidebarLibFilter === filterVal) ? null : filterVal;
+        document.querySelectorAll('#sidebar-lib-chips .sidebar-chip').forEach(c => {
+          c.classList.toggle('active', c.dataset.libFilter === state.sidebarLibFilter);
+        });
+        renderSidebarPlaylists();
+      });
+    });
+
+    document.querySelectorAll('#main-library-filters .sidebar-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        state.mainLibFilter = chip.dataset.mainLibFilter || 'all';
+        document.querySelectorAll('#main-library-filters .sidebar-chip').forEach(c => {
+          c.classList.toggle('active', c.dataset.mainLibFilter === state.mainLibFilter);
+        });
+        renderLibraryGrid();
+      });
+    });
   }
 
   function renderSidebarPlaylists() {
@@ -424,34 +744,92 @@
     DOM.sidebarPlaylists.innerHTML = '';
     sortPlaylistsInPlace();
 
-    if (state.playlists.length === 0) {
+    const filter = state.sidebarLibFilter; // null | 'playlists' | 'albums' | 'artists'
+    const items = [];
+
+    if (!filter || filter === 'playlists') {
+      state.playlists.forEach(pl => items.push({ kind: 'playlist', data: pl }));
+    }
+    if (!filter || filter === 'albums') {
+      state.savedAlbums.forEach(alb => items.push({ kind: 'album', data: alb }));
+    }
+    if (!filter || filter === 'artists') {
+      state.followedArtists.forEach(art => items.push({ kind: 'artist', data: art }));
+    }
+
+    if (items.length === 0) {
+      const emptyLabel = filter === 'artists'
+        ? '[ NO FOLLOWED ARTISTS ]'
+        : (filter === 'albums' ? '[ NO SAVED ALBUMS ]' : '[ YOUR LIBRARY IS EMPTY ]');
       const emptyItem = document.createElement('div');
-      emptyItem.style.cssText = 'padding: 8px 10px; font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;';
-      emptyItem.textContent = '[ NO PLAYLISTS SAVED ]';
+      emptyItem.style.cssText = 'padding: 10px 8px; font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;';
+      emptyItem.textContent = emptyLabel;
       DOM.sidebarPlaylists.appendChild(emptyItem);
       return;
     }
 
-    state.playlists.forEach(pl => {
-      const liked = isLikedPlaylist(pl);
+    items.forEach(entry => {
       const a = document.createElement('a');
-      a.className = 'playlist-link';
-      if (state.activePlaylist && String(state.activePlaylist.id) === String(pl.id) && state.currentView === 'library') {
-        a.classList.add('active');
-      }
       a.href = '#';
-      a.dataset.id = pl.id;
-      a.innerHTML = `
-        <span class="truncate" style="display: inline-flex; align-items: center; gap: 6px; min-width: 0;">
-          ${liked ? '<span class="material-symbols-outlined" style="font-size: 13px; color: var(--signal-orange); font-variation-settings: \'FILL\' 1;">favorite</span>' : ''}
-          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(liked ? LIKED_PLAYLIST_NAME : pl.name)}</span>
-        </span>
-        <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); flex-shrink: 0;">${pl.track_count || 0}</span>
-      `;
-      a.addEventListener('click', (e) => {
-        e.preventDefault();
-        openPlaylistView(pl);
-      });
+      a.className = 'sidebar-lib-item';
+
+      if (entry.kind === 'playlist') {
+        const pl = entry.data;
+        const liked = isLikedPlaylist(pl);
+        const displayName = liked ? LIKED_PLAYLIST_NAME : pl.name;
+        if (state.activePlaylist && String(state.activePlaylist.id) === String(pl.id) && state.currentView === 'library') {
+          a.classList.add('active');
+        }
+        const thumbHtml = pl.cover_thumb
+          ? `<div class="sidebar-lib-thumb"><img referrerpolicy="no-referrer" src="${escapeHtml(pl.cover_thumb)}" alt=""></div>`
+          : (liked
+              ? `<div class="sidebar-lib-thumb is-liked"><span class="material-symbols-outlined" style="font-size: 16px; font-variation-settings: 'FILL' 1;">favorite</span></div>`
+              : `<div class="sidebar-lib-thumb"><span class="material-symbols-outlined" style="font-size: 16px; color: var(--text-dim);">queue_music</span></div>`);
+        a.innerHTML = `
+          ${thumbHtml}
+          <div class="sidebar-lib-meta">
+            <span class="sidebar-lib-name">${escapeHtml(displayName)}</span>
+            <span class="sidebar-lib-sub">Playlist · ${pl.track_count || 0} ${(pl.track_count || 0) === 1 ? 'song' : 'songs'}</span>
+          </div>
+        `;
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          openPlaylistView(pl);
+        });
+      } else if (entry.kind === 'album') {
+        const alb = entry.data;
+        if (state.activeAlbumDetail && String(state.activeAlbumDetail.browse_id) === String(alb.browse_id) && state.currentView === 'library') {
+          a.classList.add('active');
+        }
+        a.innerHTML = `
+          <div class="sidebar-lib-thumb"><img referrerpolicy="no-referrer" src="${escapeHtml(alb.artwork || DEFAULT_FALLBACK_THUMB)}" alt=""></div>
+          <div class="sidebar-lib-meta">
+            <span class="sidebar-lib-name">${escapeHtml(alb.title)}</span>
+            <span class="sidebar-lib-sub">Album · ${escapeHtml(alb.artist || 'Official')}</span>
+          </div>
+        `;
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          openOfficialAlbumView(alb);
+        });
+      } else if (entry.kind === 'artist') {
+        const art = entry.data;
+        if (state.activeArtistData && String(state.activeArtistData.name || '').toLowerCase() === String(art.name || '').toLowerCase() && state.currentView === 'artist') {
+          a.classList.add('active');
+        }
+        a.innerHTML = `
+          <div class="sidebar-lib-thumb is-artist"><img referrerpolicy="no-referrer" src="${escapeHtml(art.photo || DEFAULT_FALLBACK_THUMB)}" alt=""></div>
+          <div class="sidebar-lib-meta">
+            <span class="sidebar-lib-name">${escapeHtml(art.name)}</span>
+            <span class="sidebar-lib-sub">Artist</span>
+          </div>
+        `;
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          openArtistView(art.name);
+        });
+      }
+
       DOM.sidebarPlaylists.appendChild(a);
     });
   }
@@ -758,6 +1136,7 @@
    */
   function openLibraryHome() {
     state.activePlaylist = null;
+    state.activeAlbumDetail = null;
     setActiveNavHighlight('library');
     switchView('library');
     if (DOM.libraryPlaylistDetail) DOM.libraryPlaylistDetail.style.display = 'none';
@@ -864,9 +1243,94 @@
     });
   }
 
+  async function openOfficialAlbumView(album) {
+    if (!album || !album.browse_id) return;
+    state.activePlaylist = null;
+    state.activeAlbumDetail = album;
+
+    setActiveNavHighlight('library');
+    switchView('library');
+    if (DOM.libraryGridSection) DOM.libraryGridSection.style.display = 'none';
+    if (DOM.libraryPlaylistDetail) DOM.libraryPlaylistDetail.style.display = 'block';
+
+    if (DOM.playlistDetailTitle) DOM.playlistDetailTitle.textContent = album.title.toUpperCase();
+    if (DOM.playlistDetailType) DOM.playlistDetailType.textContent = `${album.release_type || 'OFFICIAL ALBUM'} · ${album.artist || 'YOUTUBE MUSIC'}`;
+    if (DOM.playlistDetailBadge) DOM.playlistDetailBadge.textContent = album.year ? `ALBUM · ${album.year}` : 'OFFICIAL ALBUM';
+    if (DOM.playlistDetailModuleTag) DOM.playlistDetailModuleTag.textContent = 'YOUTUBE MUSIC: OFFICIAL_ALBUM';
+    if (DOM.playlistDetailDesc) DOM.playlistDetailDesc.textContent = `Official release by ${album.artist || 'Artist'}${album.year ? ` (${album.year})` : ''} · Loading tracks...`;
+    if (DOM.playlistDetailCover) {
+      DOM.playlistDetailCover.referrerPolicy = 'no-referrer';
+      DOM.playlistDetailCover.onerror = () => { DOM.playlistDetailCover.src = DEFAULT_FALLBACK_THUMB; };
+      DOM.playlistDetailCover.src = album.artwork || DEFAULT_FALLBACK_THUMB;
+      DOM.playlistDetailCover.style.filter = 'none';
+    }
+    if (DOM.btnDeletePlaylist) {
+      DOM.btnDeletePlaylist.style.display = 'none';
+      DOM.btnDeletePlaylist.onclick = null;
+    }
+    if (DOM.btnSaveAlbum) {
+      DOM.btnSaveAlbum.style.display = 'inline-flex';
+      const saved = isAlbumSaved(album.browse_id);
+      DOM.btnSaveAlbum.classList.toggle('following', saved);
+      DOM.btnSaveAlbum.textContent = saved ? '✓ SAVED IN LIBRARY' : '+ SAVE ALBUM TO LIBRARY';
+      DOM.btnSaveAlbum.onclick = () => toggleSaveAlbum(album);
+    }
+    if (DOM.playlistTracksHeading) {
+      DOM.playlistTracksHeading.textContent = `${album.title.toUpperCase()} · ALBUM TRACKLIST`;
+    }
+    if (DOM.playlistTracksMeta) DOM.playlistTracksMeta.textContent = 'LOADING...';
+    if (DOM.playlistTracksBody) {
+      DOM.playlistTracksBody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; padding: 36px; font-family: var(--font-mono); color: var(--signal-orange); font-size: 11px; letter-spacing: 1px;">
+            [ LOADING OFFICIAL ALBUM "${escapeHtml(album.title.toUpperCase())}"... ]
+          </td>
+        </tr>
+      `;
+    }
+
+    renderSidebarPlaylists();
+
+    let tracks = [];
+    try {
+      const url = `api/community.php?action=tracks&browse_id=${encodeURIComponent(album.browse_id)}&artist=${encodeURIComponent(album.artist || '')}&album=${encodeURIComponent(album.title || '')}&artwork=${encodeURIComponent(album.artwork || '')}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.status === 'ok' && Array.isArray(data.tracks)) {
+        tracks = data.tracks;
+      }
+    } catch (e) {}
+
+    if (DOM.playlistDetailDesc) {
+      DOM.playlistDetailDesc.textContent = `Official release by ${album.artist || 'Artist'}${album.year ? ` (${album.year})` : ''} · ${tracks.length} ${tracks.length === 1 ? 'track' : 'tracks'}.`;
+    }
+    if (DOM.playlistDetailCountBadge) {
+      DOM.playlistDetailCountBadge.textContent = `${tracks.length} ${tracks.length === 1 ? 'TRACK' : 'TRACKS'}`;
+    }
+    if (DOM.playlistTracksMeta) {
+      DOM.playlistTracksMeta.textContent = `${tracks.length} ${tracks.length === 1 ? 'TRACK' : 'TRACKS'}`;
+    }
+    if (DOM.btnPlayAllPlaylist) {
+      DOM.btnPlayAllPlaylist.onclick = () => {
+        if (tracks.length > 0) {
+          playTrack(tracks[0], tracks, { sourceName: album.title });
+        } else {
+          showToast('NO PLAYABLE TRACKS FOUND IN ALBUM');
+        }
+      };
+    }
+
+    renderPlaylistDetailTracks(tracks, null);
+  }
+
   async function openCommunityPlaylistView(comm) {
     if (!comm || !comm.browse_id) return;
     state.activePlaylist = null;
+    state.activeAlbumDetail = null;
+    if (DOM.btnSaveAlbum) {
+      DOM.btnSaveAlbum.style.display = 'none';
+      DOM.btnSaveAlbum.onclick = null;
+    }
 
     setActiveNavHighlight('library');
     switchView('library');
@@ -939,21 +1403,32 @@
     DOM.libraryGrid.innerHTML = '';
     sortPlaylistsInPlace();
 
-    const total = state.playlists.length;
+    const filter = state.mainLibFilter || 'all';
+    const showPlaylists = (filter === 'all' || filter === 'playlists');
+    const showAlbums    = (filter === 'all' || filter === 'albums');
+    const showArtists   = (filter === 'all' || filter === 'artists');
+
+    const total = (showPlaylists ? state.playlists.length : 0)
+      + (showAlbums ? state.savedAlbums.length : 0)
+      + (showArtists ? state.followedArtists.length : 0);
+
     if (DOM.libraryMetaCount) {
-      DOM.libraryMetaCount.textContent = `${total} ${total === 1 ? 'ALBUM / PLAYLIST' : 'ALBUMS / PLAYLISTS'}`;
+      DOM.libraryMetaCount.textContent = `${total} ${total === 1 ? 'ITEM' : 'ITEMS'}`;
     }
 
     if (total === 0) {
       const emptyBox = document.createElement('div');
       emptyBox.className = 'library-empty-state';
+      const emptyDesc = filter === 'artists'
+        ? 'Click any artist name under a song and press <strong>+ FOLLOW ARTIST</strong> to save them in your Library.'
+        : (filter === 'albums'
+            ? 'Search for an album under the <strong>Albums</strong> tab or inside an Artist profile and click <strong>+ SAVE ALBUM TO LIBRARY</strong>.'
+            : 'Create your own playlist, press <strong>"⋮"</strong> beside any song to Like it, or Follow artists to build your Library.');
       emptyBox.innerHTML = `
         <span class="material-symbols-outlined" style="font-size: 36px; color: var(--signal-orange);">library_music</span>
-        <div class="library-empty-title">YOUR LIBRARY HAS NO ALBUMS YET</div>
-        <p class="library-empty-desc">
-          Create your own playlist album here, press <strong>":"</strong> beside any song to Like it into <strong>Liked Songs</strong>, or press <strong>"+"</strong> on the music player below.
-        </p>
-        <button type="button" class="btn-play-all" id="btn-empty-create-playlist">+ CREATE NEW PLAYLIST</button>
+        <div class="library-empty-title">YOUR LIBRARY (${escapeHtml(filter.toUpperCase())}) IS EMPTY</div>
+        <p class="library-empty-desc">${emptyDesc}</p>
+        ${showPlaylists ? '<button type="button" class="btn-play-all" id="btn-empty-create-playlist">+ CREATE NEW PLAYLIST</button>' : ''}
       `;
       const btnEmptyCreate = emptyBox.querySelector('#btn-empty-create-playlist');
       if (btnEmptyCreate) {
@@ -963,81 +1438,161 @@
       return;
     }
 
-    state.playlists.forEach(pl => {
-      const liked = isLikedPlaylist(pl);
-      const displayName = liked ? LIKED_PLAYLIST_NAME : pl.name;
-      const count = Number(pl.track_count || 0);
+    // 1. Playlists (Liked Songs + User Created Playlists)
+    if (showPlaylists) {
+      state.playlists.forEach(pl => {
+        const liked = isLikedPlaylist(pl);
+        const displayName = liked ? LIKED_PLAYLIST_NAME : pl.name;
+        const count = Number(pl.track_count || 0);
 
-      const card = document.createElement('article');
-      card.className = 'album-card';
+        const card = document.createElement('article');
+        card.className = 'album-card';
 
-      let artInnerHtml = '';
-      if (pl.cover_thumb) {
-        artInnerHtml = `
-          <img class="album-thumb" src="${escapeHtml(pl.cover_thumb)}" alt="${escapeHtml(displayName)}" loading="lazy" style="filter: none;">
-        `;
-      } else if (liked) {
-        artInnerHtml = `
-          <div class="library-liked-art">
-            <span class="material-symbols-outlined" style="font-size: 46px; font-variation-settings: 'FILL' 1;">favorite</span>
-            <span style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em;">LIKED SONGS</span>
+        let artInnerHtml = '';
+        if (pl.cover_thumb) {
+          artInnerHtml = `<img class="album-thumb" referrerpolicy="no-referrer" src="${escapeHtml(pl.cover_thumb)}" alt="${escapeHtml(displayName)}" loading="lazy" style="filter: none;">`;
+        } else if (liked) {
+          artInnerHtml = `
+            <div class="library-liked-art">
+              <span class="material-symbols-outlined" style="font-size: 46px; font-variation-settings: 'FILL' 1;">favorite</span>
+              <span style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em;">LIKED SONGS</span>
+            </div>
+          `;
+        } else {
+          artInnerHtml = `
+            <div class="library-default-art">
+              <span class="material-symbols-outlined" style="font-size: 44px;">album</span>
+              <span style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em;">PLAYLIST</span>
+            </div>
+          `;
+        }
+
+        card.innerHTML = `
+          <div class="album-thumb-wrap">
+            ${artInnerHtml}
+            ${!liked ? `<button type="button" class="btn-card-delete" title="Delete playlist">✕</button>` : ''}
+            <div class="album-play-btn" title="Play ${escapeHtml(displayName)}">
+              <span class="material-symbols-outlined" style="font-size: 22px;">play_arrow</span>
+            </div>
+            <span class="album-badge">${liked ? 'PERMANENT · LIKED' : 'PLAYLIST'}</span>
+          </div>
+          <div class="album-info">
+            <h3 class="album-title" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</h3>
+            <p class="album-artist">${count} ${count === 1 ? 'TRACK' : 'TRACKS'} · ${liked ? 'LIKED SONGS' : 'PLAYLIST'}</p>
           </div>
         `;
-      } else {
-        artInnerHtml = `
-          <div class="library-default-art">
-            <span class="material-symbols-outlined" style="font-size: 44px;">album</span>
-            <span style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em;">USER ALBUM</span>
-          </div>
-        `;
-      }
 
-      card.innerHTML = `
-        <div class="album-thumb-wrap">
-          ${artInnerHtml}
-          ${!liked ? `<button type="button" class="btn-card-delete" title="Delete playlist">✕</button>` : ''}
-          <div class="album-play-btn" title="Play ${escapeHtml(displayName)}">
-            <span class="material-symbols-outlined" style="font-size: 22px;">play_arrow</span>
-          </div>
-          <span class="album-badge">${liked ? 'PERMANENT · LIKED' : 'USER ALBUM'}</span>
-        </div>
-        <div class="album-info">
-          <h3 class="album-title" title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</h3>
-          <p class="album-artist">${count} ${count === 1 ? 'TRACK' : 'TRACKS'} · ${liked ? 'LIKED SONGS' : 'USER CREATED'}</p>
-        </div>
-      `;
+        const playBtn = card.querySelector('.album-play-btn');
+        if (playBtn) {
+          playBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const tracks = await fetchPlaylistTracks(pl.id);
+            if (tracks.length > 0) {
+              playTrack(tracks[0], tracks, { sourceName: displayName });
+              showToast(`PLAYING COLLECTION: [${displayName.toUpperCase()}]`);
+            } else {
+              showToast(`"${displayName.toUpperCase()}" HAS NO TRACKS YET`);
+            }
+          });
+        }
 
-      // Play entire user album/playlist immediately on ▶ click
-      const playBtn = card.querySelector('.album-play-btn');
-      if (playBtn) {
-        playBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const tracks = await fetchPlaylistTracks(pl.id);
-          if (tracks.length > 0) {
-            playTrack(tracks[0], tracks, { sourceName: displayName });
-            showToast(`PLAYING COLLECTION: [${displayName.toUpperCase()}]`);
-          } else {
-            showToast(`"${displayName.toUpperCase()}" HAS NO TRACKS YET`);
-          }
-        });
-      }
+        const delBtn = card.querySelector('.btn-card-delete');
+        if (delBtn && !liked) {
+          delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deletePlaylist(pl.id);
+          });
+        }
 
-      // Delete button (ONLY present on user-created playlists, NEVER on Liked Songs)
-      const delBtn = card.querySelector('.btn-card-delete');
-      if (delBtn && !liked) {
-        delBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          deletePlaylist(pl.id);
-        });
-      }
-
-      // Click card -> open playlist detail inside Library
-      card.addEventListener('click', () => {
-        openPlaylistView(pl);
+        card.addEventListener('click', () => openPlaylistView(pl));
+        DOM.libraryGrid.appendChild(card);
       });
+    }
 
-      DOM.libraryGrid.appendChild(card);
-    });
+    // 2. Saved Official Albums
+    if (showAlbums) {
+      state.savedAlbums.forEach(alb => {
+        const card = document.createElement('article');
+        card.className = 'album-card';
+        card.innerHTML = `
+          <div class="album-thumb-wrap">
+            <img class="album-thumb" referrerpolicy="no-referrer" src="${escapeHtml(alb.artwork || DEFAULT_FALLBACK_THUMB)}" alt="" loading="lazy">
+            <button type="button" class="btn-card-delete" title="Remove album from Library">✕</button>
+            <div class="album-play-btn" title="Play ${escapeHtml(alb.title)}">
+              <span class="material-symbols-outlined" style="font-size: 22px;">play_arrow</span>
+            </div>
+            <span class="album-badge">ALBUM${alb.year ? ' · ' + escapeHtml(alb.year) : ''}</span>
+          </div>
+          <div class="album-info">
+            <h3 class="album-title" title="${escapeHtml(alb.title)}">${escapeHtml(alb.title)}</h3>
+            <p class="album-artist album-artist-link">${escapeHtml(alb.artist || 'Official Artist')}</p>
+          </div>
+        `;
+
+        const playBtn = card.querySelector('.album-play-btn');
+        if (playBtn) {
+          playBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            showToast(`LOADING ALBUM: [${alb.title.toUpperCase()}]`);
+            try {
+              const url = `api/community.php?action=tracks&browse_id=${encodeURIComponent(alb.browse_id)}&artist=${encodeURIComponent(alb.artist || '')}&album=${encodeURIComponent(alb.title || '')}&artwork=${encodeURIComponent(alb.artwork || '')}`;
+              const res = await fetch(url);
+              const data = await res.json();
+              if (data.status === 'ok' && Array.isArray(data.tracks) && data.tracks.length > 0) {
+                playTrack(data.tracks[0], data.tracks, { sourceName: alb.title });
+              }
+            } catch (err) {}
+          });
+        }
+        const delBtn = card.querySelector('.btn-card-delete');
+        if (delBtn) {
+          delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleSaveAlbum(alb);
+          });
+        }
+        const artLink = card.querySelector('.album-artist-link');
+        if (artLink && alb.artist) {
+          artLink.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openArtistView(alb.artist);
+          });
+        }
+        card.addEventListener('click', () => openOfficialAlbumView(alb));
+        DOM.libraryGrid.appendChild(card);
+      });
+    }
+
+    // 3. Followed Artists
+    if (showArtists) {
+      state.followedArtists.forEach(art => {
+        const card = document.createElement('article');
+        card.className = 'album-card artist-card-circle';
+        card.innerHTML = `
+          <div class="album-thumb-wrap">
+            <img class="album-thumb" referrerpolicy="no-referrer" src="${escapeHtml(art.photo || DEFAULT_FALLBACK_THUMB)}" alt="" loading="lazy">
+            <button type="button" class="btn-card-delete" title="Unfollow artist">✕</button>
+            <span class="album-badge">ARTIST · FOLLOWING</span>
+          </div>
+          <div class="album-info">
+            <h3 class="album-title" title="${escapeHtml(art.name)}">${escapeHtml(art.name)}</h3>
+            <p class="album-artist">${escapeHtml(art.subtitle || 'Followed Artist')}</p>
+          </div>
+        `;
+        const imgEl = card.querySelector('.album-thumb');
+        if (imgEl) imgEl.onerror = () => { imgEl.src = DEFAULT_FALLBACK_THUMB; };
+
+        const delBtn = card.querySelector('.btn-card-delete');
+        if (delBtn) {
+          delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleFollowArtist(art);
+          });
+        }
+        card.addEventListener('click', () => openArtistView(art.name));
+        DOM.libraryGrid.appendChild(card);
+      });
+    }
   }
 
   /**
@@ -1048,6 +1603,11 @@
     const liked = isLikedPlaylist(pl);
     const displayName = liked ? LIKED_PLAYLIST_NAME : pl.name;
     state.activePlaylist = pl;
+    state.activeAlbumDetail = null;
+    if (DOM.btnSaveAlbum) {
+      DOM.btnSaveAlbum.style.display = 'none';
+      DOM.btnSaveAlbum.onclick = null;
+    }
 
     setActiveNavHighlight('library');
     switchView('library');
@@ -1129,7 +1689,7 @@
       DOM.playlistTracksBody.innerHTML = `
         <tr>
           <td colspan="5" style="text-align: center; padding: 36px 18px; font-family: var(--font-mono); color: var(--text-dim); font-size: 11px;">
-            NO TRACKS SAVED YET · USE ":" BESIDE ANY SONG OR "+" ON THE PLAYER BELOW TO ADD MUSIC
+            NO TRACKS SAVED YET · USE "⋮" BESIDE ANY SONG OR "+" ON THE PLAYER BELOW TO ADD MUSIC
           </td>
         </tr>
       `;
@@ -1151,12 +1711,10 @@
         </td>
         <td class="col-title">
           <div class="track-title-cell">
-            <img class="track-inline-thumb" src="${escapeHtml(track.thumbnail || DEFAULT_FALLBACK_THUMB)}" alt="">
-            <div>
-              <span class="track-title-text">${escapeHtml(track.title)}</span>
-              <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);" class="sm-artist-mobile">
-                ${escapeHtml(track.artist)}
-              </div>
+            <img class="track-inline-thumb" referrerpolicy="no-referrer" src="${escapeHtml(track.thumbnail || DEFAULT_FALLBACK_THUMB)}" alt="">
+            <div style="min-width: 0;">
+              <div><span class="track-title-text">${escapeHtml(track.title)}</span></div>
+              <span class="track-artist-sublink">${escapeHtml(track.artist)}</span>
             </div>
           </div>
         </td>
@@ -1165,23 +1723,22 @@
         </td>
         <td class="col-dur">${escapeHtml(track.duration || '03:30')}</td>
         <td class="col-action">
-          <button type="button" class="btn-add-popover" title="Track options">:</button>
+          <button type="button" class="btn-add-popover" title="Track options">⋮</button>
         </td>
       `;
 
       tr.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-add-popover') || e.target.closest('.artist-click-link')) return;
+        if (e.target.closest('.btn-add-popover') || e.target.closest('.artist-click-link') || e.target.closest('.track-artist-sublink')) return;
         const plTitle = playlistObj ? (isLikedPlaylist(playlistObj) ? LIKED_PLAYLIST_NAME : playlistObj.name) : 'Playlist';
         playTrack(track, tracks, { sourceName: plTitle });
       });
 
-      const artLink = tr.querySelector('.artist-click-link');
-      if (artLink) {
+      tr.querySelectorAll('.artist-click-link, .track-artist-sublink').forEach(artLink => {
         artLink.addEventListener('click', (e) => {
           e.stopPropagation();
           openArtistView(track.artist);
         });
-      }
+      });
 
       const optBtn = tr.querySelector('.btn-add-popover');
       if (optBtn) {
@@ -1305,7 +1862,7 @@
       const upcoming = state.queue.slice(startIdx);
 
       if (upcoming.length === 0) {
-        DOM.queueUpcomingList.innerHTML = `<div class="queue-empty-note">End of queue — add songs with ":" → Add to queue</div>`;
+        DOM.queueUpcomingList.innerHTML = `<div class="queue-empty-note">End of queue — add songs with "⋮" → Add to queue</div>`;
       } else {
         upcoming.forEach((uTrack, offset) => {
           const realQueueIndex = startIdx + offset;
@@ -2110,6 +2667,29 @@
       });
     }
 
+    // Universal Page Refresh Buttons (near Search Bar, Explore, and Header)
+    [DOM.btnRefreshPage, DOM.btnRefreshExplore, DOM.btnGlobalRefresh].forEach(btn => {
+      if (btn) {
+        btn.addEventListener('click', () => refreshCurrentView(btn));
+      }
+    });
+
+    // Recommended Songs Carousel Left / Right Arrows
+    if (DOM.btnRecPrev) {
+      DOM.btnRecPrev.addEventListener('click', () => shiftRecommendedCarousel(-4));
+    }
+    if (DOM.btnRecNext) {
+      DOM.btnRecNext.addEventListener('click', () => shiftRecommendedCarousel(4));
+    }
+
+    // 4 Search Category Tabs (Tracks | Albums | Artists | Playlists)
+    document.querySelectorAll('#search-tabs-bar .search-tab-btn').forEach(tabBtn => {
+      tabBtn.addEventListener('click', () => {
+        const targetTab = tabBtn.dataset.searchTab || 'tracks';
+        switchSearchTab(targetTab);
+      });
+    });
+
     // Back buttons
     if (DOM.btnBackOverview) {
       DOM.btnBackOverview.addEventListener('click', () => {
@@ -2473,12 +3053,19 @@
   function handleNavigation(destination) {
     setActiveNavHighlight(destination);
     state.activePlaylist = null;
+    state.activeAlbumDetail = null;
     renderSidebarPlaylists();
 
     if (destination === 'home') {
+      state.currentSearchQuery = '';
+      if (DOM.searchInput) DOM.searchInput.value = '';
+      if (DOM.exploreSearchInput) DOM.exploreSearchInput.value = '';
+      if (DOM.searchTabsBar) DOM.searchTabsBar.style.display = 'none';
+      if (DOM.searchGridPanel) DOM.searchGridPanel.style.display = 'none';
+      if (DOM.searchTracksPanel) DOM.searchTracksPanel.style.display = 'block';
       switchView('overview');
       if (DOM.overviewAlbumsSection) DOM.overviewAlbumsSection.style.display = 'block';
-      loadHomeRecommendations();
+      loadHomeRecommendations(false);
     } else if (destination === 'explore' || destination === 'search') {
       switchView('explore');
       if (DOM.exploreSearchInput) {
@@ -2490,9 +3077,100 @@
   }
 
   /**
-   * Search Execution with YouTube Music Official Album Art Prioritized Above Unofficial YouTube
+   * Refresh active page cleanly without reloading the browser (keeps music playing!)
    */
-  async function performSearch(query) {
+  async function refreshCurrentView(triggerBtn = null) {
+    if (triggerBtn) triggerBtn.classList.add('is-spinning');
+    try {
+      if (state.currentView === 'overview') {
+        if (state.currentSearchQuery) {
+          const qKey = state.currentSearchQuery.toLowerCase();
+          delete state.searchCache[qKey];
+          showToast(`REFRESHING SEARCH: "${state.currentSearchQuery.toUpperCase()}"`);
+          await performSearch(state.currentSearchQuery, { keepTab: true });
+        } else {
+          state.recOffset = 0;
+          showToast('REFRESHING RECOMMENDED SONGS...');
+          await loadHomeRecommendations(true);
+        }
+      } else if (state.currentView === 'explore') {
+        showToast('EXPLORE FREQUENCIES REFRESHED');
+      } else if (state.currentView === 'library') {
+        showToast('REFRESHING YOUR LIBRARY...');
+        await loadPlaylists();
+        if (DOM.libraryPlaylistDetail && DOM.libraryPlaylistDetail.style.display !== 'none') {
+          if (state.activePlaylist) {
+            await openPlaylistView(state.activePlaylist);
+          } else if (state.activeAlbumDetail) {
+            await openOfficialAlbumView(state.activeAlbumDetail);
+          }
+        } else {
+          renderLibraryGrid();
+          await loadCommunityPlaylists(true);
+        }
+      } else if (state.currentView === 'artist' && state.activeArtistData) {
+        showToast(`REFRESHING ARTIST: ${state.activeArtistData.name.toUpperCase()}`);
+        await openArtistView(state.activeArtistData.name);
+      }
+    } finally {
+      if (triggerBtn) {
+        setTimeout(() => triggerBtn.classList.remove('is-spinning'), 450);
+      }
+    }
+  }
+
+  /**
+   * Shift Recommended Songs Carousel Left (-4) or Right (+4)
+   */
+  async function shiftRecommendedCarousel(delta) {
+    if (state.isLoadingMoreRecs) return;
+
+    if (delta < 0) {
+      if (state.recOffset <= 0) return;
+      state.recOffset = Math.max(0, state.recOffset - 4);
+      renderRecommendedAlbums(liveRecommendedAlbums);
+      return;
+    }
+
+    // Moving Right (+4)
+    if (state.recOffset + 4 < liveRecommendedAlbums.length) {
+      state.recOffset += 4;
+      renderRecommendedAlbums(liveRecommendedAlbums);
+      return;
+    }
+
+    // Reached end of current batch -> fetch more fresh YouTube Music songs seamlessly
+    state.isLoadingMoreRecs = true;
+    if (DOM.btnRecNext) DOM.btnRecNext.classList.add('is-spinning');
+    try {
+      const res = await fetch(`api/search.php?refresh=1&t=${Date.now()}`);
+      const data = await res.json();
+      if (data.status === 'ok' && Array.isArray(data.recommended_albums) && data.recommended_albums.length > 0) {
+        const existingVids = new Set(liveRecommendedAlbums.map(a => a.leadTrack && a.leadTrack.video_id));
+        const fresh = data.recommended_albums.filter(a => !a.leadTrack || !existingVids.has(a.leadTrack.video_id));
+        if (fresh.length > 0) {
+          liveRecommendedAlbums = liveRecommendedAlbums.concat(fresh);
+          if (Array.isArray(data.tracks)) {
+            liveRecommendedTracks = liveRecommendedTracks.concat(data.tracks);
+          }
+          state.recOffset = Math.min(state.recOffset + 4, Math.max(0, liveRecommendedAlbums.length - 4));
+        } else {
+          state.recOffset = 0;
+        }
+      }
+    } catch (e) {
+      state.recOffset = 0;
+    } finally {
+      state.isLoadingMoreRecs = false;
+      if (DOM.btnRecNext) DOM.btnRecNext.classList.remove('is-spinning');
+      renderRecommendedAlbums(liveRecommendedAlbums);
+    }
+  }
+
+  /**
+   * Multi-Tab Search Execution (Tracks | Albums | Artists | Playlists)
+   */
+  async function performSearch(query, opts = {}) {
     state.currentSearchQuery = query;
 
     if (state.currentView !== 'overview') {
@@ -2504,8 +3182,46 @@
       if (state.searchAbortController) {
         try { state.searchAbortController.abort(); } catch (e) {}
       }
+      if (DOM.searchTabsBar) DOM.searchTabsBar.style.display = 'none';
+      if (DOM.searchTracksPanel) DOM.searchTracksPanel.style.display = 'block';
+      if (DOM.searchGridPanel) DOM.searchGridPanel.style.display = 'none';
       if (DOM.overviewAlbumsSection) DOM.overviewAlbumsSection.style.display = 'block';
-      loadHomeRecommendations();
+      loadHomeRecommendations(false);
+      return;
+    }
+
+    if (!opts.keepTab) {
+      state.activeSearchTab = 'tracks';
+    }
+    if (DOM.overviewAlbumsSection) {
+      DOM.overviewAlbumsSection.style.display = 'none';
+    }
+    if (DOM.searchTabsBar) {
+      DOM.searchTabsBar.style.display = 'flex';
+      document.querySelectorAll('#search-tabs-bar .search-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.searchTab === state.activeSearchTab);
+      });
+    }
+
+    await loadSearchTabData(query, state.activeSearchTab);
+  }
+
+  async function switchSearchTab(tabName) {
+    if (!state.currentSearchQuery) return;
+    state.activeSearchTab = tabName;
+    document.querySelectorAll('#search-tabs-bar .search-tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.searchTab === tabName);
+    });
+    await loadSearchTabData(state.currentSearchQuery, tabName);
+  }
+
+  async function loadSearchTabData(query, tabName) {
+    const qKey = query.toLowerCase();
+    if (!state.searchCache[qKey]) state.searchCache[qKey] = {};
+
+    // Instant render if tab data is already cached for this query
+    if (state.searchCache[qKey][tabName]) {
+      renderActiveSearchTab(query, tabName, state.searchCache[qKey][tabName]);
       return;
     }
 
@@ -2517,68 +3233,266 @@
     }
     state.searchAbortController = new AbortController();
 
-    // Hide Recommended Master Albums while searching so official YT Music search results stand front & center
-    if (DOM.overviewAlbumsSection) {
-      DOM.overviewAlbumsSection.style.display = 'none';
+    const upperQ = query.toUpperCase();
+    if (tabName === 'tracks') {
+      if (DOM.searchTracksPanel) DOM.searchTracksPanel.style.display = 'block';
+      if (DOM.searchGridPanel) DOM.searchGridPanel.style.display = 'none';
+      DOM.tracksSectionTitle.textContent = `SEARCH RESULTS: "${upperQ}"`;
+      DOM.tracksMetaCount.textContent = 'LOADING...';
+      DOM.tracksTableBody.innerHTML = `
+        <tr>
+          <td colspan="5" style="text-align: center; padding: 40px; font-family: var(--font-mono); color: var(--signal-orange); font-size: 12px; letter-spacing: 2px;">
+            [ CALIBRATING YOUTUBE MUSIC SPECTRUM FOR "${escapeHtml(upperQ)}"... ]
+          </td>
+        </tr>
+      `;
+    } else {
+      if (DOM.searchTracksPanel) DOM.searchTracksPanel.style.display = 'none';
+      if (DOM.searchGridPanel) DOM.searchGridPanel.style.display = 'block';
+      DOM.tracksSectionTitle.textContent = `${tabName.toUpperCase()} RESULTS: "${upperQ}"`;
+      DOM.tracksMetaCount.textContent = 'LOADING...';
+      if (DOM.searchResultsGrid) {
+        DOM.searchResultsGrid.innerHTML = `
+          <div style="grid-column: 1 / -1; padding: 40px; text-align: center; border: 1px solid var(--border-line); background: var(--bg-darker); font-family: var(--font-mono); color: var(--signal-orange); font-size: 12px; letter-spacing: 1.5px;">
+            [ LOADING ${escapeHtml(tabName.toUpperCase())} FOR "${escapeHtml(upperQ)}"... ]
+          </div>
+        `;
+      }
     }
 
-    DOM.tracksSectionTitle.textContent = `SEARCHING YOUTUBE MUSIC & YOUTUBE: "${query.toUpperCase()}"`;
-    DOM.tracksTableBody.innerHTML = `
-      <tr>
-        <td colspan="5" style="text-align: center; padding: 40px; font-family: var(--font-mono); color: var(--signal-orange); font-size: 12px; letter-spacing: 2px;">
-          [ CALIBRATING YOUTUBE MUSIC SPECTRUM FOR "${escapeHtml(query.toUpperCase())}"... ]
-        </td>
-      </tr>
-    `;
-
     try {
-      const res = await fetch(`api/search.php?q=${encodeURIComponent(query)}`, {
+      const res = await fetch(`api/search.php?q=${encodeURIComponent(query)}&type=${encodeURIComponent(tabName)}`, {
         signal: state.searchAbortController.signal
       });
-      if (!res.ok) {
-        throw new Error(`Search HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`Search HTTP ${res.status}`);
       const data = await res.json();
-
-      if (currentSeq !== state.searchSequence) {
-        return;
-      }
+      if (currentSeq !== state.searchSequence) return;
 
       if (data.status === 'ok') {
-        if (data.tracks && data.tracks.length > 0) {
-          const sortedTracks = [...data.tracks].sort((a, b) => {
-            const aOfficial = (a.is_official || a.source === 'youtube_music') ? 0 : 1;
-            const bOfficial = (b.is_official || b.source === 'youtube_music') ? 0 : 1;
-            return aOfficial - bOfficial;
-          });
-          renderTracksTable(sortedTracks, `SEARCH RESULTS: "${query.toUpperCase()}"`, { isSearch: true });
-        } else {
-          DOM.tracksMetaCount.textContent = '0 TRACKS';
+        state.searchCache[qKey][tabName] = data;
+        renderActiveSearchTab(query, tabName, data);
+      }
+    } catch (e) {
+      if (e && e.name === 'AbortError') return;
+      console.warn('Search error:', e);
+      if (currentSeq === state.searchSequence) {
+        DOM.tracksMetaCount.textContent = '0 RESULTS';
+        if (tabName === 'tracks') {
           DOM.tracksTableBody.innerHTML = `
             <tr>
-              <td colspan="5" style="text-align: center; padding: 35px; font-family: var(--font-mono); color: var(--text-dim); letter-spacing: 1px;">
-                NO AUDIO SIGNALS FOUND FOR "${escapeHtml(query)}"
+              <td colspan="5" style="text-align: center; padding: 35px; font-family: var(--font-mono); color: var(--signal-orange); letter-spacing: 1px;">
+                SEARCH CONNECTION TIMEOUT — PRESS ENTER TO RETRY "${escapeHtml(upperQ)}"
               </td>
             </tr>
           `;
+        } else if (DOM.searchResultsGrid) {
+          DOM.searchResultsGrid.innerHTML = `
+            <div style="grid-column: 1 / -1; padding: 32px; text-align: center; border: 1px solid var(--border-line); font-family: var(--font-mono); color: var(--signal-orange);">
+              CONNECTION ERROR — CLICK REFRESH TO RETRY "${escapeHtml(upperQ)}"
+            </div>
+          `;
         }
       }
-    } catch (e) {
-      if (e && e.name === 'AbortError') {
-        return;
-      }
-      console.warn('Search error:', e);
-      if (currentSeq === state.searchSequence) {
+    }
+  }
+
+  function renderActiveSearchTab(query, tabName, data) {
+    const upperQ = query.toUpperCase();
+    if (tabName === 'tracks') {
+      if (DOM.searchTracksPanel) DOM.searchTracksPanel.style.display = 'block';
+      if (DOM.searchGridPanel) DOM.searchGridPanel.style.display = 'none';
+      if (data.tracks && data.tracks.length > 0) {
+        const sortedTracks = [...data.tracks].sort((a, b) => {
+          const aOfficial = (a.is_official || a.source === 'youtube_music') ? 0 : 1;
+          const bOfficial = (b.is_official || b.source === 'youtube_music') ? 0 : 1;
+          return aOfficial - bOfficial;
+        });
+        renderTracksTable(sortedTracks, `SEARCH RESULTS: "${upperQ}"`, { isSearch: true });
+      } else {
         DOM.tracksMetaCount.textContent = '0 TRACKS';
         DOM.tracksTableBody.innerHTML = `
           <tr>
-            <td colspan="5" style="text-align: center; padding: 35px; font-family: var(--font-mono); color: var(--signal-orange); letter-spacing: 1px;">
-              SEARCH CONNECTION TIMEOUT — PRESS ENTER TO RETRY "${escapeHtml(query.toUpperCase())}"
+            <td colspan="5" style="text-align: center; padding: 35px; font-family: var(--font-mono); color: var(--text-dim); letter-spacing: 1px;">
+              NO AUDIO SIGNALS FOUND FOR "${escapeHtml(query)}"
             </td>
           </tr>
         `;
       }
+      return;
     }
+
+    if (DOM.searchTracksPanel) DOM.searchTracksPanel.style.display = 'none';
+    if (DOM.searchGridPanel) DOM.searchGridPanel.style.display = 'block';
+
+    if (tabName === 'albums') {
+      renderSearchAlbumsGrid(data.albums || [], upperQ);
+    } else if (tabName === 'artists') {
+      renderSearchArtistsGrid(data.artists || [], upperQ);
+    } else if (tabName === 'playlists') {
+      renderSearchPlaylistsGrid(data.playlists || [], upperQ);
+    }
+  }
+
+  function renderSearchAlbumsGrid(albums, upperQ) {
+    DOM.tracksSectionTitle.textContent = `OFFICIAL ALBUMS: "${upperQ}"`;
+    DOM.tracksMetaCount.textContent = `${albums.length} ALBUMS`;
+    if (!DOM.searchResultsGrid) return;
+    DOM.searchResultsGrid.innerHTML = '';
+
+    if (albums.length === 0) {
+      DOM.searchResultsGrid.innerHTML = `<div style="grid-column: 1 / -1; padding: 30px; text-align: center; border: 1px solid var(--border-line); font-family: var(--font-mono); color: var(--text-dim);">NO OFFICIAL ALBUMS FOUND FOR "${escapeHtml(upperQ)}"</div>`;
+      return;
+    }
+
+    albums.forEach(alb => {
+      const card = buildOfficialAlbumCard(alb);
+      DOM.searchResultsGrid.appendChild(card);
+    });
+  }
+
+  function buildOfficialAlbumCard(alb) {
+    const card = document.createElement('article');
+    card.className = 'album-card';
+    card.innerHTML = `
+      <div class="album-thumb-wrap">
+        <img class="album-thumb" referrerpolicy="no-referrer" src="${escapeHtml(alb.artwork || DEFAULT_FALLBACK_THUMB)}" alt="" loading="lazy">
+        <button type="button" class="album-play-btn" title="Play ${escapeHtml(alb.title)}">
+          <span class="material-symbols-outlined" style="font-size: 22px;">play_arrow</span>
+        </button>
+        <span class="album-badge">${escapeHtml(alb.release_type || 'ALBUM')}${alb.year ? ' · ' + escapeHtml(alb.year) : ''}</span>
+      </div>
+      <div class="album-info">
+        <h3 class="album-title" title="${escapeHtml(alb.title)}">${escapeHtml(alb.title)}</h3>
+        <p class="album-artist album-artist-link">${escapeHtml(alb.artist || 'Official Artist')}</p>
+      </div>
+    `;
+    const imgEl = card.querySelector('.album-thumb');
+    if (imgEl) imgEl.onerror = () => { imgEl.src = DEFAULT_FALLBACK_THUMB; };
+
+    const playBtn = card.querySelector('.album-play-btn');
+    if (playBtn) {
+      playBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        showToast(`LOADING ALBUM: [${alb.title.toUpperCase()}]`);
+        try {
+          const url = `api/community.php?action=tracks&browse_id=${encodeURIComponent(alb.browse_id)}&artist=${encodeURIComponent(alb.artist || '')}&album=${encodeURIComponent(alb.title || '')}&artwork=${encodeURIComponent(alb.artwork || '')}`;
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data.status === 'ok' && Array.isArray(data.tracks) && data.tracks.length > 0) {
+            playTrack(data.tracks[0], data.tracks, { sourceName: alb.title });
+          } else {
+            showToast('NO PLAYABLE TRACKS IN ALBUM');
+          }
+        } catch (err) {
+          showToast('ERROR LOADING ALBUM');
+        }
+      });
+    }
+    const artLink = card.querySelector('.album-artist-link');
+    if (artLink && alb.artist) {
+      artLink.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openArtistView(alb.artist);
+      });
+    }
+    card.addEventListener('click', () => openOfficialAlbumView(alb));
+    return card;
+  }
+
+  function buildArtistProfileCard(art) {
+    const followed = isArtistFollowed(art.name);
+    const card = document.createElement('article');
+    card.className = 'album-card artist-card-circle';
+    card.innerHTML = `
+      <div class="album-thumb-wrap">
+        <img class="album-thumb" referrerpolicy="no-referrer" src="${escapeHtml(art.photo || DEFAULT_FALLBACK_THUMB)}" alt="" loading="lazy">
+        <span class="album-badge">ARTIST</span>
+      </div>
+      <div class="album-info">
+        <h3 class="album-title" title="${escapeHtml(art.name)}">${escapeHtml(art.name)}</h3>
+        <p class="album-artist">${escapeHtml(art.subtitle || 'YouTube Music Artist')}</p>
+        <button type="button" class="btn-card-follow ${followed ? 'following' : ''}" data-artist-name="${escapeHtml(art.name)}">
+          ${followed ? '✓ FOLLOWING' : '+ FOLLOW'}
+        </button>
+      </div>
+    `;
+    const imgEl = card.querySelector('.album-thumb');
+    if (imgEl) imgEl.onerror = () => { imgEl.src = DEFAULT_FALLBACK_THUMB; };
+
+    const followBtn = card.querySelector('.btn-card-follow');
+    if (followBtn) {
+      followBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFollowArtist(art);
+      });
+    }
+    card.addEventListener('click', () => openArtistView(art.name));
+    return card;
+  }
+
+  function renderSearchArtistsGrid(artists, upperQ) {
+    DOM.tracksSectionTitle.textContent = `ARTISTS: "${upperQ}"`;
+    DOM.tracksMetaCount.textContent = `${artists.length} ARTISTS`;
+    if (!DOM.searchResultsGrid) return;
+    DOM.searchResultsGrid.innerHTML = '';
+
+    if (artists.length === 0) {
+      DOM.searchResultsGrid.innerHTML = `<div style="grid-column: 1 / -1; padding: 30px; text-align: center; border: 1px solid var(--border-line); font-family: var(--font-mono); color: var(--text-dim);">NO ARTISTS FOUND FOR "${escapeHtml(upperQ)}"</div>`;
+      return;
+    }
+
+    artists.forEach(art => {
+      DOM.searchResultsGrid.appendChild(buildArtistProfileCard(art));
+    });
+  }
+
+  function renderSearchPlaylistsGrid(playlists, upperQ) {
+    DOM.tracksSectionTitle.textContent = `COMMUNITY PLAYLISTS: "${upperQ}"`;
+    DOM.tracksMetaCount.textContent = `${playlists.length} PLAYLISTS`;
+    if (!DOM.searchResultsGrid) return;
+    DOM.searchResultsGrid.innerHTML = '';
+
+    if (playlists.length === 0) {
+      DOM.searchResultsGrid.innerHTML = `<div style="grid-column: 1 / -1; padding: 30px; text-align: center; border: 1px solid var(--border-line); font-family: var(--font-mono); color: var(--text-dim);">NO COMMUNITY PLAYLISTS FOUND FOR "${escapeHtml(upperQ)}"</div>`;
+      return;
+    }
+
+    playlists.forEach(comm => {
+      const card = document.createElement('article');
+      card.className = 'album-card';
+      card.innerHTML = `
+        <div class="album-thumb-wrap">
+          <img class="album-thumb" referrerpolicy="no-referrer" src="${escapeHtml(comm.artwork || DEFAULT_FALLBACK_THUMB)}" alt="" loading="lazy">
+          <button type="button" class="album-play-btn" title="Play ${escapeHtml(comm.title)}">
+            <span class="material-symbols-outlined" style="font-size: 22px;">play_arrow</span>
+          </button>
+          <span class="album-badge">COMMUNITY PLAYLIST</span>
+        </div>
+        <div class="album-info">
+          <h3 class="album-title" title="${escapeHtml(comm.title)}">${escapeHtml(comm.title)}</h3>
+          <p class="album-artist">${escapeHtml(comm.creator || 'YouTube Music Community')}</p>
+        </div>
+      `;
+      const imgEl = card.querySelector('.album-thumb');
+      if (imgEl) imgEl.onerror = () => { imgEl.src = DEFAULT_FALLBACK_THUMB; };
+
+      const playBtn = card.querySelector('.album-play-btn');
+      if (playBtn) {
+        playBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          showToast(`LOADING PLAYLIST: [${comm.title.toUpperCase()}]`);
+          try {
+            const res = await fetch(`api/community.php?action=tracks&browse_id=${encodeURIComponent(comm.browse_id)}`);
+            const data = await res.json();
+            if (data.status === 'ok' && Array.isArray(data.tracks) && data.tracks.length > 0) {
+              playTrack(data.tracks[0], data.tracks, { sourceName: comm.title });
+            }
+          } catch (err) {}
+        });
+      }
+      card.addEventListener('click', () => openCommunityPlaylistView(comm));
+      DOM.searchResultsGrid.appendChild(card);
+    });
   }
 
   /**
@@ -2606,15 +3520,22 @@
   }
 
   /**
-   * Open Artist Dossier & Discography
+   * Open Artist Dossier: Shows Artist Hero + Follow Button + Official Albums + Top Songs + Matching Artists
    */
   async function openArtistView(artistName) {
     if (!artistName) return;
     switchView('artist');
+    state.activeArtistData = { name: artistName, photo: '', subtitle: 'Artist', browse_id: '' };
 
     DOM.artistName.textContent = artistName.toUpperCase();
-    DOM.artistLocation.textContent = 'FETCHING SIGNAL ARCHIVE...';
-    DOM.artistBio.textContent = 'Compiling acoustic dossier and studio discography records...';
+    DOM.artistLocation.textContent = 'FETCHING ARTIST ALBUMS & TRACKS...';
+    DOM.artistBio.textContent = 'Loading official studio albums, matching artists, and discography...';
+    if (DOM.artistAlbumsGrid) {
+      DOM.artistAlbumsGrid.innerHTML = `<div style="grid-column: 1 / -1; padding: 24px; text-align: center; border: 1px solid var(--border-line); font-family: var(--font-mono); font-size: 11px; color: var(--signal-orange);">[ LOADING OFFICIAL ALBUMS... ]</div>`;
+    }
+    if (DOM.artistRelatedGrid) {
+      DOM.artistRelatedGrid.innerHTML = `<div style="grid-column: 1 / -1; padding: 24px; text-align: center; border: 1px solid var(--border-line); font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">[ LOADING ARTISTS... ]</div>`;
+    }
     DOM.artistTracksBody.innerHTML = `
       <tr>
         <td colspan="5" style="text-align: center; padding: 25px; font-family: var(--font-mono); color: var(--text-dim);">
@@ -2623,23 +3544,68 @@
       </tr>
     `;
 
+    syncFollowUI();
+
     try {
       const res = await fetch(`api/artist.php?name=${encodeURIComponent(artistName)}`);
       const data = await res.json();
 
       if (data.status === 'ok' && data.artist) {
         const art = data.artist;
+        state.activeArtistData = {
+          name: art.name || artistName,
+          photo: art.photo || DEFAULT_FALLBACK_THUMB,
+          subtitle: art.location || 'YouTube Music Artist',
+          browse_id: art.browse_id || ''
+        };
+
         DOM.artistName.textContent = art.name;
-        DOM.artistLocation.textContent = art.location || 'ARCHIVED ARTIST';
+        DOM.artistLocation.textContent = art.location || 'YOUTUBE MUSIC ARTIST';
         DOM.artistBio.textContent = art.desc || 'Audio recording master catalog.';
+        DOM.artistPhoto.referrerPolicy = 'no-referrer';
+        DOM.artistPhoto.onerror = () => { DOM.artistPhoto.src = DEFAULT_FALLBACK_THUMB; };
         DOM.artistPhoto.src = art.photo || DEFAULT_FALLBACK_THUMB;
+        DOM.artistPhoto.style.filter = 'none';
         DOM.artistCatalogId.textContent = `CATALOG IDENTIFIER: ${art.catalog_id || 'APOLLO-REF-01'}`;
 
-        renderArtistTracksTable(art.tracks || [], art.name);
+        // Wire Follow Artist button -> saves directly into Library!
+        if (DOM.btnFollowArtist) {
+          DOM.btnFollowArtist.onclick = () => toggleFollowArtist(state.activeArtistData);
+        }
+        syncFollowUI();
+
+        // Render Official Albums of this Artist
+        const albums = Array.isArray(art.albums) ? art.albums : [];
+        if (DOM.artistAlbumsMeta) DOM.artistAlbumsMeta.textContent = `${albums.length} ALBUMS`;
+        if (DOM.artistAlbumsGrid) {
+          DOM.artistAlbumsGrid.innerHTML = '';
+          if (albums.length === 0) {
+            DOM.artistAlbumsGrid.innerHTML = `<div style="grid-column: 1 / -1; padding: 20px; text-align: center; border: 1px solid var(--border-line); font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">NO OFFICIAL ALBUMS LISTED</div>`;
+          } else {
+            albums.forEach(alb => DOM.artistAlbumsGrid.appendChild(buildOfficialAlbumCard(alb)));
+          }
+        }
+
+        // Render Top Tracks
+        const tracks = Array.isArray(art.tracks) ? art.tracks : [];
+        if (DOM.artistTracksMeta) DOM.artistTracksMeta.textContent = `${tracks.length} TRACKS`;
+        renderArtistTracksTable(tracks, art.name);
+
+        // Render Matching / Related Artists
+        const related = Array.isArray(art.artists) ? art.artists : [];
+        if (DOM.artistRelatedMeta) DOM.artistRelatedMeta.textContent = `${related.length} ARTISTS`;
+        if (DOM.artistRelatedGrid) {
+          DOM.artistRelatedGrid.innerHTML = '';
+          if (related.length === 0) {
+            DOM.artistRelatedGrid.innerHTML = `<div style="grid-column: 1 / -1; padding: 20px; text-align: center; border: 1px solid var(--border-line); font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);">NO MATCHING ARTISTS FOUND</div>`;
+          } else {
+            related.forEach(rel => DOM.artistRelatedGrid.appendChild(buildArtistProfileCard(rel)));
+          }
+        }
 
         DOM.btnPlayAllArtist.onclick = () => {
-          if (art.tracks && art.tracks.length > 0) {
-            playTrack(art.tracks[0], art.tracks);
+          if (tracks.length > 0) {
+            playTrack(tracks[0], tracks, { sourceName: art.name });
           }
         };
       }
@@ -2649,10 +3615,10 @@
   }
 
   /**
-   * Fetch & Render Live YouTube Music Recommended Albums & Tracks on Home
+   * Fetch & Render Live YouTube Music Recommended Songs on Home
    */
-  async function loadHomeRecommendations() {
-    if (DOM.albumsGrid && liveRecommendedAlbums.length === 0) {
+  async function loadHomeRecommendations(forceRefresh = false) {
+    if (DOM.albumsGrid && (forceRefresh || liveRecommendedAlbums.length === 0)) {
       DOM.albumsGrid.innerHTML = `
         <div style="grid-column: 1 / -1; padding: 28px; text-align: center; border: 1px solid var(--border-line); background: var(--bg-darker); font-family: var(--font-mono); font-size: 11px; color: var(--signal-orange); letter-spacing: 0.08em;">
           [ LOADING LIVE RECOMMENDATIONS FROM YOUTUBE MUSIC... ]
@@ -2661,11 +3627,13 @@
     }
 
     try {
-      const res = await fetch('api/search.php');
+      const url = forceRefresh ? `api/search.php?refresh=1&t=${Date.now()}` : 'api/search.php';
+      const res = await fetch(url);
       const data = await res.json();
       if (data.status === 'ok') {
         if (Array.isArray(data.recommended_albums) && data.recommended_albums.length > 0) {
           liveRecommendedAlbums = data.recommended_albums;
+          state.recOffset = 0;
         }
         if (Array.isArray(data.tracks) && data.tracks.length > 0) {
           liveRecommendedTracks = data.tracks;
@@ -2683,7 +3651,6 @@
       : 'YOUTUBE MUSIC · RECOMMENDED TRACKS';
     renderTracksTable(homeTracks, heading);
 
-    // Initialize player bar with first YouTube Music track if none active yet
     if (!state.currentTrack && homeTracks.length > 0) {
       state.currentTrack = homeTracks[0];
       setNowPlayingInfo(homeTracks[0]);
@@ -2697,9 +3664,13 @@
   function renderRecommendedAlbums(albums = []) {
     if (!DOM.albumsGrid) return;
     if (DOM.overviewAlbumsTitle) DOM.overviewAlbumsTitle.textContent = 'RECOMMENDED SONGS · YOUTUBE MUSIC';
-    if (DOM.overviewAlbumsMeta) DOM.overviewAlbumsMeta.textContent = 'INDIVIDUAL TRACKS · PLAY DIRECTLY';
+    if (DOM.overviewAlbumsMeta) DOM.overviewAlbumsMeta.textContent = 'INDIVIDUAL TRACKS · USE < > TO BROWSE';
 
     DOM.albumsGrid.innerHTML = '';
+
+    if (DOM.btnRecPrev) {
+      DOM.btnRecPrev.disabled = (state.recOffset <= 0);
+    }
 
     if (!albums || albums.length === 0) {
       DOM.albumsGrid.innerHTML = `
@@ -2710,7 +3681,10 @@
       return;
     }
 
-    albums.slice(0, 4).forEach(album => {
+    const pageSlice = albums.slice(state.recOffset, state.recOffset + 4);
+    const displaySlice = pageSlice.length > 0 ? pageSlice : albums.slice(0, 4);
+
+    displaySlice.forEach(album => {
       const card = document.createElement('article');
       card.className = 'album-card recommended-song-card';
       const lead = album.leadTrack || null;
@@ -2728,7 +3702,7 @@
         </div>
         <div class="album-info">
           <h3 class="album-title" title="${escapeHtml(album.title)}">${escapeHtml(album.title)}</h3>
-          <p class="album-artist">${escapeHtml(album.artist)}</p>
+          <p class="album-artist album-artist-link" title="View ${escapeHtml(album.artist)}">${escapeHtml(album.artist)}</p>
         </div>
       `;
 
@@ -2744,12 +3718,19 @@
         });
       }
 
-      // ONLY the Play button triggers action; clicking the card/image does nothing
       const playBtn = card.querySelector('.album-play-btn');
       if (playBtn && lead) {
         playBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           playTrack(lead, liveRecommendedTracks.length > 0 ? liveRecommendedTracks : [lead], { sourceName: 'YouTube Music' });
+        });
+      }
+
+      const artistLink = card.querySelector('.album-artist-link');
+      if (artistLink && album.artist) {
+        artistLink.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openArtistView(album.artist);
         });
       }
 
@@ -2805,13 +3786,13 @@
     cleanTracks.forEach((track, index) => {
       const isOfficialYtm = Boolean(track.is_official || track.source === 'youtube_music');
 
-      // Insert clear visual divider before unofficial YouTube videos in search results
+      // Insert clear visual divider before YouTube video results in search
       if (opts.isSearch && hasOfficialInSearch && !isOfficialYtm && !insertedUnofficialDivider) {
         insertedUnofficialDivider = true;
         const divTr = document.createElement('tr');
         divTr.className = 'tracks-divider-row';
         divTr.innerHTML = `
-          <td colspan="5">YOUTUBE · UNOFFICIAL / COMMUNITY VIDEO UPLOADS</td>
+          <td colspan="5">YOUTUBE · VIDEO DARI YOUTUBE</td>
         `;
         DOM.tracksTableBody.appendChild(divTr);
       }
@@ -2828,9 +3809,6 @@
             ? '<span class="track-source-badge ytm">YT MUSIC</span>'
             : '<span class="track-source-badge yt">YOUTUBE</span>')
         : '';
-      const subAlbumHtml = (opts.isSearch && isOfficialYtm && track.album)
-        ? `<div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); margin-top: 2px;">${escapeHtml(track.album)}</div>`
-        : `<div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim);" class="sm-artist-mobile">${escapeHtml(track.artist)}</div>`;
 
       tr.innerHTML = `
         <td class="col-num">
@@ -2845,7 +3823,7 @@
                 <span class="track-title-text">${escapeHtml(track.title)}</span>
                 ${sourceBadgeHtml}
               </div>
-              ${subAlbumHtml}
+              <span class="track-artist-sublink" title="Lihat artis & album ${escapeHtml(track.artist)}">${escapeHtml(track.artist)}</span>
             </div>
           </div>
         </td>
@@ -2854,25 +3832,24 @@
         </td>
         <td class="col-dur">${escapeHtml(track.duration || '03:30')}</td>
         <td class="col-action">
-          <button type="button" class="btn-add-popover" title="Track options">:</button>
+          <button type="button" class="btn-add-popover" title="Track options">⋮</button>
         </td>
       `;
 
       tr.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-add-popover') || e.target.closest('.artist-click-link')) return;
+        if (e.target.closest('.btn-add-popover') || e.target.closest('.artist-click-link') || e.target.closest('.track-artist-sublink')) return;
         const srcLabel = opts.isSearch && state.currentSearchQuery
           ? state.currentSearchQuery
           : 'YouTube Music';
         playTrack(track, cleanTracks, { sourceName: srcLabel });
       });
 
-      const artLink = tr.querySelector('.artist-click-link');
-      if (artLink) {
+      tr.querySelectorAll('.artist-click-link, .track-artist-sublink').forEach(artLink => {
         artLink.addEventListener('click', (e) => {
           e.stopPropagation();
           openArtistView(track.artist);
         });
-      }
+      });
 
       const optBtn = tr.querySelector('.btn-add-popover');
       if (optBtn) {
@@ -2910,19 +3887,28 @@
           <span class="material-symbols-outlined row-play-icon">play_arrow</span>
         </td>
         <td class="col-title">
-          <span class="track-title-text">${escapeHtml(track.title)}</span>
+          <div><span class="track-title-text">${escapeHtml(track.title)}</span></div>
+          <span class="track-artist-sublink">${escapeHtml(track.artist)}</span>
         </td>
         <td class="col-artist">${escapeHtml(track.album || 'Studio Master Archive')}</td>
         <td class="col-dur">${escapeHtml(track.duration || '03:40')}</td>
         <td class="col-action">
-          <button type="button" class="btn-add-popover" title="Track options">:</button>
+          <button type="button" class="btn-add-popover" title="Track options">⋮</button>
         </td>
       `;
 
       tr.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-add-popover')) return;
+        if (e.target.closest('.btn-add-popover') || e.target.closest('.track-artist-sublink')) return;
         playTrack(track, cleanTracks, { sourceName: artistName || 'Artist' });
       });
+
+      const subArt = tr.querySelector('.track-artist-sublink');
+      if (subArt) {
+        subArt.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openArtistView(track.artist);
+        });
+      }
 
       const optBtn = tr.querySelector('.btn-add-popover');
       if (optBtn) {
@@ -2961,7 +3947,7 @@
     if (DOM.popoverHeaderLabel) {
       DOM.popoverHeaderLabel.textContent = (opts.mode === 'player_add')
         ? 'ADD TO PLAYLIST'
-        : 'TRACK OPTIONS [:]';
+        : 'TRACK OPTIONS [⋮]';
     }
     if (DOM.popoverQueueSection) {
       DOM.popoverQueueSection.style.display = (opts.mode === 'player_add') ? 'none' : 'block';

@@ -1,15 +1,16 @@
 <?php
 /**
  * APOLLO — Service Rekomendasi Lagu YouTube Music (Halaman Home)
- * Mengambil lagu individual populer secara paralel dan menyimpannya di cache sementara (/tmp).
+ * Mengambil kumpulan lagu individual secara paralel agar tombol panah Next/Prev Recommended
+ * dapat menggeser beberapa halaman lagu dengan mulus.
  */
 
-function apolloGetHomeRecommendations() {
-    $cacheFile = rtrim(sys_get_temp_dir(), '/\\') . '/apollo_ytm_home_songs_v3.json';
+function apolloGetHomeRecommendations($forceRefresh = false) {
+    $cacheFile = rtrim(sys_get_temp_dir(), '/\\') . '/apollo_ytm_home_songs_v4.json';
     $pool = [];
 
-    // 1. Cek cache 10 menit agar loading halaman Home selalu instan
-    if (is_file($cacheFile)) {
+    // 1. Gunakan cache 10 menit kecuali diminta refresh paksa
+    if (!$forceRefresh && is_file($cacheFile)) {
         $raw = @file_get_contents($cacheFile);
         if (!empty($raw)) {
             $cached = json_decode($raw, true);
@@ -19,19 +20,21 @@ function apolloGetHomeRecommendations() {
         }
     }
 
-    // 2. Jika cache kosong/kedaluwarsa, ambil lagu dari artis pilihan secara paralel
+    // 2. Ambil lagu dari 4 artis pilihan secara paralel (~1.0 detik)
     if (empty($pool)) {
         $seen = [];
         $artistSeeds = [
             'Barasuara', 'Hindia', 'Perunggu', 'Tulus', 'Sheila On 7',
             'Bernadya', 'Juicy Luicy', 'Nadin Amizah', 'Payung Teduh', 'Dewa 19',
+            'Feast', 'Efek Rumah Kaca', 'Reality Club', 'Sal Priadi', 'Fourtwnty',
             'Arctic Monkeys', 'The Weeknd', 'Coldplay', 'Radiohead', 'Bruno Mars',
-            'Daniel Caesar', 'Daft Punk', 'Oasis', 'Billie Eilish', 'Queen'
+            'Daniel Caesar', 'Daft Punk', 'Oasis', 'Billie Eilish', 'Queen',
+            'Tame Impala', 'Frank Ocean', 'SZA', 'Linkin Park', 'Green Day'
         ];
         shuffle($artistSeeds);
 
         $seedRequests = [];
-        foreach (array_slice($artistSeeds, 0, 2) as $idx => $seedArtist) {
+        foreach (array_slice($artistSeeds, 0, 4) as $idx => $seedArtist) {
             $seedRequests['seed_' . $idx] = [
                 'url'     => 'https://music.youtube.com/youtubei/v1/search?prettyPrint=false',
                 'method'  => 'POST',
@@ -67,7 +70,7 @@ function apolloGetHomeRecommendations() {
                         $seen[$parsed['video_id']] = true;
                         $pool[] = $parsed;
                         $perArtistCount++;
-                        if ($perArtistCount >= 8) break 2;
+                        if ($perArtistCount >= 6) break 2;
                     }
                 }
             }
@@ -83,13 +86,13 @@ function apolloGetHomeRecommendations() {
 
     shuffle($pool);
 
-    // 3. Susun 4 kartu Recommended dari artis yang berbeda
+    // 3. Susun hingga 16 kartu Recommended (maksimal 2 lagu per artis agar variatif untuk slider < >)
     $recommendedCards = [];
-    $usedArtists = [];
+    $artistCounts = [];
     foreach ($pool as $track) {
         $artKey = strtolower(trim($track['artist']));
-        if (isset($usedArtists[$artKey])) continue;
-        $usedArtists[$artKey] = true;
+        $artistCounts[$artKey] = ($artistCounts[$artKey] ?? 0) + 1;
+        if ($artistCounts[$artKey] > 2) continue;
 
         $recommendedCards[] = [
             'title'     => $track['title'],
@@ -99,11 +102,11 @@ function apolloGetHomeRecommendations() {
             'leadTrack' => $track
         ];
 
-        if (count($recommendedCards) >= 4) break;
+        if (count($recommendedCards) >= 16) break;
     }
 
     return [
         'albums' => $recommendedCards,
-        'tracks' => array_slice($pool, 0, 14)
+        'tracks' => array_slice($pool, 0, 16)
     ];
 }

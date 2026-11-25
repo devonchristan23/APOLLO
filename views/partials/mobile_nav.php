@@ -8,8 +8,8 @@
       <span class="material-symbols-outlined">explore</span>
       <span>Explore</span>
     </a>
-    <a href="#" class="bottom-nav-item" data-nav="playlists">
-      <span class="material-symbols-outlined">queue_music</span>
-      <span>Playlists</span>
+    <a href="#" class="bottom-nav-item" data-nav="library">
+      <span class="material-symbols-outlined">library_music</span>
+      <span>Library</span>
     </a>
   </nav>

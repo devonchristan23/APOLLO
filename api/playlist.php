@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../services/playlist_service.php';
+require_once __DIR__ . '/../services/library_service.php';
 
 apolloHandleCorsOptions();
 
@@ -125,6 +126,33 @@ try {
                 jsonResponse(['status' => 'error', 'message' => 'Invalid parameters for track removal'], 400);
             }
             jsonResponse(['status' => 'ok', 'message' => 'Track removed successfully']);
+            break;
+
+        case 'get_library_collections':
+            jsonResponse([
+                'status'           => 'ok',
+                'db_connected'     => true,
+                'followed_artists' => apolloListFollowedArtists($pdo, $currentUserId),
+                'saved_albums'     => apolloListSavedAlbums($pdo, $currentUserId)
+            ]);
+            break;
+
+        case 'toggle_follow_artist':
+            $res = apolloToggleFollowArtist($pdo, $currentUserId, $data, $currentUser);
+            jsonResponse([
+                'status'    => 'ok',
+                'following' => $res['following'],
+                'artist'    => $res['artist']
+            ]);
+            break;
+
+        case 'toggle_save_album':
+            $res = apolloToggleSaveAlbum($pdo, $currentUserId, $data, $currentUser);
+            jsonResponse([
+                'status' => 'ok',
+                'saved'  => $res['saved'],
+                'album'  => $res['album']
+            ]);
             break;
 
         default:

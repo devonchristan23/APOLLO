@@ -143,10 +143,15 @@ function apolloGetCommunityPlaylists() {
 }
 
 /**
- * Ambil daftar lagu di dalam sebuah Community Playlist berdasarkan browse_id
+ * Ambil daftar lagu di dalam sebuah Community Playlist (VL...) atau Album Resmi (MPREb_...)
  */
-function apolloGetCommunityPlaylistTracks($browseId) {
-    $plCacheFile = rtrim(sys_get_temp_dir(), '/\\') . '/apollo_ytm_comm_tracks_' . md5($browseId) . '.json';
+function apolloGetCommunityPlaylistTracks($browseId, $fallbackMeta = []) {
+    $fallbackArtist  = trim($fallbackMeta['artist'] ?? '');
+    $fallbackAlbum   = trim($fallbackMeta['album'] ?? '');
+    $fallbackArtwork = trim($fallbackMeta['artwork'] ?? '');
+
+    $cacheKey = md5($browseId . '|' . $fallbackArtist . '|' . $fallbackAlbum);
+    $plCacheFile = rtrim(sys_get_temp_dir(), '/\\') . '/apollo_ytm_comm_tracks_v2_' . $cacheKey . '.json';
 
     if (is_file($plCacheFile)) {
         $raw = @file_get_contents($plCacheFile);
@@ -172,6 +177,29 @@ function apolloGetCommunityPlaylistTracks($browseId) {
     $tracks = [];
     if ($resp['code'] === 200 && !empty($resp['body'])) {
         $data = json_decode($resp['body'], true);
+
+        // Ambil header album/playlist jika fallback kosong
+        $hdr = $data['contents']['twoColumnBrowseResultsRenderer']['tabs'][0]['tabRenderer']['content']['sectionListRenderer']['contents'][0]['musicResponsiveHeaderRenderer'] ?? null;
+        if (is_array($hdr)) {
+            if ($fallbackAlbum === '') {
+                $hTitle = '';
+                foreach (($hdr['title']['runs'] ?? []) as $tr) $hTitle .= ($tr['text'] ?? '');
+                $fallbackAlbum = trim($hTitle);
+            }
+            if ($fallbackArtist === '') {
+                $hStrap = '';
+                foreach (($hdr['straplineTextOne']['runs'] ?? []) as $sr) $hStrap .= ($sr['text'] ?? '');
+                $fallbackArtist = trim($hStrap);
+            }
+            if ($fallbackArtwork === '') {
+                $hThumbs = $hdr['thumbnail']['musicThumbnailRenderer']['thumbnail']['thumbnails'] ?? [];
+                if (!empty($hThumbs) && is_array($hThumbs)) {
+                    $lastH = end($hThumbs);
+                    $fallbackArtwork = apolloUpgradeYtmThumb($lastH['url'] ?? '');
+                }
+            }
+        }
+
         $rawItems = [];
         $walk = function ($node) use (&$walk, &$rawItems) {
             if (!is_array($node)) return;
@@ -203,13 +231,19 @@ function apolloGetCommunityPlaylistTracks($browseId) {
                 if (trim($txt) === '•') break;
                 $artist .= $txt;
             }
-            $artist = trim($artist) ?: 'Unknown Artist';
+            $artist = trim($artist);
+            if ($artist === '' || preg_match('/\b(plays|views)\b/i', $artist)) {
+                $artist = $fallbackArtist !== '' ? $fallbackArtist : 'Unknown Artist';
+            }
 
             $album = '';
             foreach (($r['flexColumns'][2]['musicResponsiveListItemFlexColumnRenderer']['text']['runs'] ?? []) as $ar) {
                 $album .= ($ar['text'] ?? '');
             }
             $album = trim($album);
+            if ($album === '' || preg_match('/\b(plays|views)\b/i', $album)) {
+                $album = $fallbackAlbum;
+            }
 
             $durRaw = $r['fixedColumns'][0]['musicResponsiveListItemFixedColumnRenderer']['text']['runs'][0]['text'] ?? '';
             list($durSec, $formattedDur) = apolloParseDurationText($durRaw, '03:45');
@@ -217,7 +251,8 @@ function apolloGetCommunityPlaylistTracks($browseId) {
 
             $thumbs = $r['thumbnail']['musicThumbnailRenderer']['thumbnail']['thumbnails'] ?? [];
             $lastT = (!empty($thumbs) && is_array($thumbs)) ? end($thumbs) : null;
-            $thumbUrl = apolloUpgradeYtmThumb($lastT['url'] ?? '') ?: "https://i.ytimg.com/vi/{$vId}/hqdefault.jpg";
+            $thumbUrl = apolloUpgradeYtmThumb($lastT['url'] ?? '')
+                ?: ($fallbackArtwork !== '' ? $fallbackArtwork : "https://i.ytimg.com/vi/{$vId}/hqdefault.jpg");
 
             $seenVids[$vId] = true;
             $tracks[] = [

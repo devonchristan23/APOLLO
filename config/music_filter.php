@@ -90,7 +90,7 @@ if (!function_exists('isLegitimateMusicTrack')) {
                 }
             }
 
-            $indianPattern = '/\b(hindi(\s+old)?(\s+hits)?\s+songs?|bollywood|bhojpuri|punjabi\s+songs?|telugu\s+songs?|tamil\s+songs?|malayalam\s+songs?|kannada\s+songs?|haryanvi\s+songs?|90s\s+purane\s+gane|sadabahar\s+gaane|purane\s+gane|gana\s+video|geet\s+mp3|dj\s+remix\s+bhojpuri|bhojpuri\s+video|arijit\s+singh|udit\s+narayan|kumar\s+sanu|alka\s+yagnik|neha\s+kakkar|lata\s+mangeshkar|kishore\s+kumar|mohammed\s+rafi|sonu\s+nigam|pawan\s+singh|khesari\s+lal|sidhu\s+moose|karan\s+aujla|ap\s+dhillon|jubin\s+nautiyal|anirudh\s+ravichander|shashwat\s+sachdev|anuradha\s+paudwal)\b/i';
+            $indianPattern = '/\b(hindi(\s+old)?(\s+hits)?\s+songs?|bollywood|bhojpuri|punjabi\s+songs?|telugu\s+songs?|tamil\s+songs?|malayalam\s+songs?|kannada\s+songs?|haryanvi\s+songs?|90s\s+purane\s+gane|sadabahar\s+gaane|purane\s+gane|gana\s+video|geet\s+mp3|dj\s+remix\s+bhojpuri|bhojpuri\s+video|arijit\s+singh|udit\s+narayan|kumar\s+sanu|alka\s+yagnik|neha\s+kakkar|lata\s+mangeshkar|kishore\s+kumar|mohammed\s+rafi|sonu\s+nigam|pawan\s+singh|khesari\s+lal|sidhu\s+moose|karan\s+aujla|ap\s+dhillon|jubin\s+nautiyal|anirudh\s+ravichander|shashwat\s+sachdev|anuradha\s+paudwal|kailash\s+kher|shaan|chand\s+sifarish|fanaa|yash\s+raj|pritam|vishal[\s\-]shekhar|atif\s+aslam|rahat\s+fateh|shankar\s+ehsaan)\b/i';
             if (preg_match($indianPattern, $lowText)) {
                 return false;
             }

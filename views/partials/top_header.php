@@ -1,10 +1,15 @@
-    <!-- Top Header Bar with User Account Controls -->
+    <!-- Top Header Bar with Global Refresh & User Account Controls -->
     <header id="top-header">
       <div class="engine-status">
         <span class="signal-dot"></span>
         <span>AUDIO ENGINE: ACTIVE [44.1kHz / 24-BIT DIETER RAMS MATRIX]</span>
       </div>
       <div class="header-right-group">
+        <button type="button" class="btn-header-refresh" id="btn-global-refresh" title="Refresh current page">
+          <span class="material-symbols-outlined" style="font-size: 15px;">refresh</span>
+          <span class="hide-on-sm">REFRESH</span>
+        </button>
+
         <div class="engine-badge hide-on-sm">
           <span>HI-RES PCM · ZERO ADS</span>
         </div>
