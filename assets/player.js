@@ -23,6 +23,7 @@
     manualQueue: [],
     queueSourceName: 'YouTube Music',
     isQueueOpen: false,
+    isFullscreenOpen: false,
     repeatMode: 0, // 0: Off, 1: Repeat All, 2: Repeat One
     isShuffle: false,
     volume: 0.8,
@@ -89,6 +90,36 @@
     nowArtist: document.getElementById('now-artist'),
     nowThumb: document.getElementById('now-thumb'),
     nowAddBtn: document.getElementById('btn-now-add'),
+    btnFullscreenOpen: document.getElementById('btn-fullscreen-open'),
+    fullscreenPlayer: document.getElementById('fullscreen-player'),
+    btnFullscreenClose: document.getElementById('btn-fullscreen-close'),
+    btnFsNative: document.getElementById('btn-fs-native'),
+    fsNativeIcon: document.getElementById('fs-native-icon'),
+    fsBgA: document.getElementById('fs-bg-a'),
+    fsBgB: document.getElementById('fs-bg-b'),
+    fsBgC: document.getElementById('fs-bg-c'),
+    fsSourceLabel: document.getElementById('fs-source-label'),
+    fsCoverWrap: document.getElementById('fs-cover-wrap'),
+    fsCover: document.getElementById('fs-cover'),
+    fsTitle: document.getElementById('fs-title'),
+    fsArtist: document.getElementById('fs-artist'),
+    fsAlbum: document.getElementById('fs-album'),
+    fsTimeCurrent: document.getElementById('fs-time-current'),
+    fsTimeDuration: document.getElementById('fs-time-duration'),
+    fsSeekTrack: document.getElementById('fs-seek-track'),
+    fsSeekFill: document.getElementById('fs-seek-fill'),
+    fsBtnLike: document.getElementById('fs-btn-like'),
+    fsBtnAdd: document.getElementById('fs-btn-add'),
+    fsBtnShuffle: document.getElementById('fs-btn-shuffle'),
+    fsBtnPrev: document.getElementById('fs-btn-prev'),
+    fsBtnPlayPause: document.getElementById('fs-btn-play-pause'),
+    fsPlayPauseIcon: document.getElementById('fs-play-pause-icon'),
+    fsBtnNext: document.getElementById('fs-btn-next'),
+    fsBtnRepeat: document.getElementById('fs-btn-repeat'),
+    fsBtnVol: document.getElementById('fs-btn-vol'),
+    fsVolIcon: document.getElementById('fs-vol-icon'),
+    fsVolTrack: document.getElementById('fs-vol-track'),
+    fsVolFill: document.getElementById('fs-vol-fill'),
     searchInput: document.getElementById('global-search-input'),
     exploreSearchInput: document.getElementById('explore-search-input'),
     btnRefreshPage: document.getElementById('btn-refresh-page'),
@@ -222,6 +253,7 @@
     setupAudioListeners();
     setupUIListeners();
     setupSidebarResizeAndChips();
+    setupFullscreenListeners();
     setupClickAnimations();
     setupMediaSession();
 
@@ -2011,6 +2043,7 @@
           DOM.timeDuration.textContent = formatTime(dur);
           DOM.seekFill.style.width = `${Math.min(100, (cur / dur) * 100)}%`;
         }
+        syncFullscreenProgress(cur, dur);
       } catch (e) {}
     }, 250);
   }
@@ -2482,6 +2515,247 @@
     }
   }
 
+  /**
+   * Fullscreen Ambient Mode (Centered Album Art + Living Moving Blurred Backdrop)
+   */
+  function applyFullscreenBackdrop(imgUrl) {
+    const safeUrl = imgUrl || DEFAULT_FALLBACK_THUMB;
+    const cssBg = `url("${String(safeUrl).replace(/"/g, '\\"')}")`;
+    if (DOM.fsBgA) DOM.fsBgA.style.backgroundImage = cssBg;
+    if (DOM.fsBgB) DOM.fsBgB.style.backgroundImage = cssBg;
+    if (DOM.fsBgC) DOM.fsBgC.style.backgroundImage = cssBg;
+  }
+
+  function syncFullscreenTrackInfo(track) {
+    if (!track || !DOM.fullscreenPlayer) return;
+    if (DOM.fsTitle) DOM.fsTitle.textContent = track.title || 'Unknown Track';
+    if (DOM.fsArtist) DOM.fsArtist.textContent = track.artist || 'Unknown Artist';
+    if (DOM.fsAlbum) DOM.fsAlbum.textContent = track.album || '';
+    if (DOM.fsSourceLabel) DOM.fsSourceLabel.textContent = (state.queueSourceName || 'YOUTUBE MUSIC').toUpperCase();
+
+    const primaryThumb = track.thumbnail || DEFAULT_FALLBACK_THUMB;
+    applyFullscreenBackdrop(primaryThumb);
+
+    if (DOM.fsCover) {
+      DOM.fsCover.referrerPolicy = 'no-referrer';
+      DOM.fsCover.onerror = () => {
+        if (track.video_id && !DOM.fsCover.src.includes('i.ytimg.com')) {
+          const ytUrl = `https://i.ytimg.com/vi/${encodeURIComponent(track.video_id)}/hqdefault.jpg`;
+          DOM.fsCover.src = ytUrl;
+          applyFullscreenBackdrop(ytUrl);
+        } else {
+          DOM.fsCover.src = DEFAULT_FALLBACK_THUMB;
+          applyFullscreenBackdrop(DEFAULT_FALLBACK_THUMB);
+        }
+      };
+      DOM.fsCover.src = primaryThumb;
+      triggerMicroAnim(DOM.fsCoverWrap, 'anim-pop-burst');
+    }
+
+    syncFullscreenPlaybackState();
+  }
+
+  function syncFullscreenPlaybackState() {
+    if (!DOM.fullscreenPlayer) return;
+    DOM.fullscreenPlayer.classList.toggle('is-playing', Boolean(state.isPlaying));
+
+    if (DOM.fsPlayPauseIcon) {
+      DOM.fsPlayPauseIcon.textContent = state.isPlaying ? 'pause' : 'play_arrow';
+    }
+    if (DOM.fsBtnPlayPause) {
+      DOM.fsBtnPlayPause.classList.toggle('is-playing', Boolean(state.isPlaying));
+    }
+    if (DOM.fsBtnShuffle) {
+      DOM.fsBtnShuffle.classList.toggle('active', Boolean(state.isShuffle));
+    }
+    if (DOM.fsBtnRepeat) {
+      DOM.fsBtnRepeat.classList.remove('mode-1', 'mode-2');
+      if (state.repeatMode === 1) DOM.fsBtnRepeat.classList.add('mode-1');
+      if (state.repeatMode === 2) DOM.fsBtnRepeat.classList.add('mode-2');
+    }
+    if (DOM.fsBtnLike) {
+      const liked = Boolean(state.currentTrack && state.likedTrackIds.has(state.currentTrack.video_id));
+      DOM.fsBtnLike.classList.toggle('liked', liked);
+    }
+    if (DOM.fsVolFill) {
+      DOM.fsVolFill.style.width = `${state.isMuted ? 0 : Math.round(state.volume * 100)}%`;
+    }
+    if (DOM.fsVolIcon) {
+      if (state.isMuted || state.volume === 0) DOM.fsVolIcon.textContent = 'volume_off';
+      else if (state.volume < 0.5) DOM.fsVolIcon.textContent = 'volume_down';
+      else DOM.fsVolIcon.textContent = 'volume_up';
+    }
+  }
+
+  function syncFullscreenProgress(cur, dur) {
+    if (DOM.fsTimeCurrent) DOM.fsTimeCurrent.textContent = formatTime(cur);
+    if (dur > 0) {
+      if (DOM.fsTimeDuration) DOM.fsTimeDuration.textContent = formatTime(dur);
+      if (DOM.fsSeekFill) DOM.fsSeekFill.style.width = `${Math.min(100, (cur / dur) * 100)}%`;
+    }
+  }
+
+  function openFullscreenPlayer() {
+    if (!DOM.fullscreenPlayer) return;
+    const activeSong = state.currentTrack || state.queue[0] || liveRecommendedTracks[0];
+    if (activeSong) {
+      state.currentTrack = activeSong;
+      syncFullscreenTrackInfo(activeSong);
+    }
+    state.isFullscreenOpen = true;
+    DOM.fullscreenPlayer.classList.add('open');
+    DOM.fullscreenPlayer.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+    if (DOM.btnFullscreenOpen) DOM.btnFullscreenOpen.classList.add('active');
+    syncFullscreenPlaybackState();
+  }
+
+  function closeFullscreenPlayer() {
+    if (!DOM.fullscreenPlayer) return;
+    state.isFullscreenOpen = false;
+    DOM.fullscreenPlayer.classList.remove('open');
+    DOM.fullscreenPlayer.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    if (DOM.btnFullscreenOpen) DOM.btnFullscreenOpen.classList.remove('active');
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+
+  function setupFullscreenListeners() {
+    if (DOM.btnFullscreenOpen) {
+      DOM.btnFullscreenOpen.addEventListener('click', () => {
+        if (state.isFullscreenOpen) closeFullscreenPlayer();
+        else openFullscreenPlayer();
+      });
+    }
+    const nowThumbWrap = DOM.nowThumb ? DOM.nowThumb.closest('.now-thumb-wrap') : null;
+    if (nowThumbWrap) {
+      nowThumbWrap.title = 'Open Fullscreen Ambient Mode (F)';
+      nowThumbWrap.addEventListener('click', () => openFullscreenPlayer());
+    }
+    if (DOM.btnFullscreenClose) {
+      DOM.btnFullscreenClose.addEventListener('click', closeFullscreenPlayer);
+    }
+    if (DOM.btnFsNative) {
+      DOM.btnFsNative.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          if (DOM.fullscreenPlayer && DOM.fullscreenPlayer.requestFullscreen) {
+            DOM.fullscreenPlayer.requestFullscreen().catch(() => {});
+          }
+        } else if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        }
+      });
+      document.addEventListener('fullscreenchange', () => {
+        if (DOM.fsNativeIcon) {
+          DOM.fsNativeIcon.textContent = document.fullscreenElement ? 'fullscreen_exit' : 'fullscreen';
+        }
+      });
+    }
+    if (DOM.fsArtist) {
+      DOM.fsArtist.addEventListener('click', () => {
+        if (state.currentTrack && state.currentTrack.artist) {
+          closeFullscreenPlayer();
+          openArtistView(state.currentTrack.artist);
+        }
+      });
+    }
+    if (DOM.fsBtnPlayPause) {
+      DOM.fsBtnPlayPause.addEventListener('click', () => {
+        triggerMicroAnim(DOM.fsBtnPlayPause, 'anim-pop-burst');
+        togglePlayPause();
+      });
+    }
+    if (DOM.fsBtnNext) {
+      DOM.fsBtnNext.addEventListener('click', () => {
+        triggerMicroAnim(DOM.fsBtnNext, 'anim-kick-right');
+        playNextTrack();
+      });
+    }
+    if (DOM.fsBtnPrev) {
+      DOM.fsBtnPrev.addEventListener('click', () => {
+        triggerMicroAnim(DOM.fsBtnPrev, 'anim-kick-left');
+        playPreviousTrack();
+      });
+    }
+    if (DOM.fsBtnShuffle) {
+      DOM.fsBtnShuffle.addEventListener('click', () => {
+        triggerMicroAnim(DOM.fsBtnShuffle, 'anim-pop-burst');
+        toggleShuffle();
+        syncFullscreenPlaybackState();
+      });
+    }
+    if (DOM.fsBtnRepeat) {
+      DOM.fsBtnRepeat.addEventListener('click', () => {
+        triggerMicroAnim(DOM.fsBtnRepeat, 'anim-spin-half');
+        cycleRepeatMode();
+        syncFullscreenPlaybackState();
+      });
+    }
+    if (DOM.fsBtnLike) {
+      DOM.fsBtnLike.addEventListener('click', async () => {
+        if (!state.currentTrack) return;
+        triggerMicroAnim(DOM.fsBtnLike, 'anim-pop-burst');
+        await toggleLikeTrack(state.currentTrack);
+        syncFullscreenPlaybackState();
+      });
+    }
+    if (DOM.fsBtnAdd) {
+      DOM.fsBtnAdd.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!state.currentTrack) return;
+        openPlaylistPopover(e, state.currentTrack, { mode: 'player_add' });
+      });
+    }
+    if (DOM.fsSeekTrack) {
+      DOM.fsSeekTrack.addEventListener('click', (e) => {
+        const rect = DOM.fsSeekTrack.getBoundingClientRect();
+        const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        DOM.fsSeekTrack.classList.add('is-seeking');
+        setTimeout(() => DOM.fsSeekTrack.classList.remove('is-seeking'), 380);
+        if (state.playbackBackend === 'yt_bridge' && state.ytPlayer && state.ytApiReady) {
+          const dur = state.ytPlayer.getDuration() || 0;
+          if (dur > 0) {
+            state.ytPlayer.seekTo(percent * dur, true);
+            syncFullscreenProgress(percent * dur, dur);
+            if (DOM.seekFill) DOM.seekFill.style.width = `${percent * 100}%`;
+          }
+          return;
+        }
+        if (state.audio.duration) {
+          state.audio.currentTime = percent * state.audio.duration;
+          syncFullscreenProgress(state.audio.currentTime, state.audio.duration);
+        }
+      });
+    }
+    if (DOM.fsVolTrack) {
+      DOM.fsVolTrack.addEventListener('click', (e) => {
+        const rect = DOM.fsVolTrack.getBoundingClientRect();
+        const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        setVolume(percent);
+        syncFullscreenPlaybackState();
+      });
+    }
+    if (DOM.fsBtnVol) {
+      DOM.fsBtnVol.addEventListener('click', () => {
+        if (DOM.volBtn) DOM.volBtn.click();
+        syncFullscreenPlaybackState();
+      });
+    }
+
+    // Shortcut "F" to toggle Fullscreen Ambient Mode when not typing
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'f' || e.key === 'F') {
+        const tag = (document.activeElement && document.activeElement.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || e.ctrlKey || e.metaKey || e.altKey) return;
+        e.preventDefault();
+        if (state.isFullscreenOpen) closeFullscreenPlayer();
+        else openFullscreenPlayer();
+      }
+    });
+  }
+
   function updatePlayPauseButton() {
     if (state.isPlaying) {
       DOM.playPauseIcon.textContent = 'pause';
@@ -2492,6 +2766,7 @@
       DOM.playPauseBtn.title = 'Play';
       DOM.playPauseBtn.classList.remove('is-playing');
     }
+    syncFullscreenPlaybackState();
   }
 
   function setNowPlayingInfo(track) {
@@ -2509,6 +2784,7 @@
     DOM.nowThumb.src = track.thumbnail || DEFAULT_FALLBACK_THUMB;
     DOM.nowThumb.style.filter = 'none';
     DOM.nowThumb.alt = track.title;
+    syncFullscreenTrackInfo(track);
   }
 
   function updateActiveTrackRowHighlight() {
@@ -2538,6 +2814,7 @@
           preloadNextTrackInQueue();
         }
       }
+      syncFullscreenProgress(cur, dur);
     });
 
     state.audio.addEventListener('ended', () => {
@@ -2844,6 +3121,7 @@
         }
         closePlaylistPopover();
         closeAuthModal();
+        if (state.isFullscreenOpen) closeFullscreenPlayer();
         if (state.isQueueOpen) toggleQueueDrawer(false);
       }
     });

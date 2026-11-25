@@ -38,6 +38,7 @@ require __DIR__ . '/../views/partials/head.php';
   <?php
     require __DIR__ . '/../views/partials/player_bar.php';
     require __DIR__ . '/../views/partials/queue_drawer.php';
+    require __DIR__ . '/../views/partials/fullscreen_player.php';
     require __DIR__ . '/../views/partials/mobile_nav.php';
     require __DIR__ . '/../views/partials/modals.php';
   ?>

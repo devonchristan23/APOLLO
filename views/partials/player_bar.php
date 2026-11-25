@@ -53,7 +53,7 @@
       </div>
     </div>
 
-    <!-- Right: Queue & Volume Control -->
+    <!-- Right: Queue, Volume & Fullscreen Mode -->
     <div class="player-right">
       <button type="button" class="btn-queue-toggle" id="btn-queue-toggle" title="Queue">
         <span class="material-symbols-outlined" style="font-size: 20px;">queue_music</span>
@@ -64,5 +64,8 @@
       <div class="vol-bar-track" id="vol-bar-track">
         <div class="vol-bar-fill" id="vol-bar-fill"></div>
       </div>
+      <button type="button" class="btn-queue-toggle" id="btn-fullscreen-open" title="Fullscreen Ambient Mode (F)">
+        <span class="material-symbols-outlined" style="font-size: 19px;">open_in_full</span>
+      </button>
     </div>
   </footer>
