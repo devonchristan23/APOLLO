@@ -4,8 +4,12 @@
  * Mengatur session, koneksi MySQL (XAMPP / Cloud), serta memuat modul helper inti.
  */
 
-// Matikan notice/warning agar output JSON API selalu bersih
-error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
+// Matikan tampilan notice/warning/deprecated ke layar agar output JSON API selalu murni
+error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+@ini_set('display_errors', '0');
+if (PHP_SAPI !== 'cli' && ob_get_level() === 0) {
+    ob_start();
+}
 
 // Mulai PHP Session untuk akun user & pelacakan sesi pengunjung
 if (session_status() === PHP_SESSION_NONE && !headers_sent()) {

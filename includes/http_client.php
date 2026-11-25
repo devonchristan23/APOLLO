@@ -41,7 +41,10 @@ function apolloHttpRequest($url, $method = 'GET', $headers = [], $body = null, $
         curl_setopt($ch, CURLOPT_HTTPHEADER, $mergedHeaders);
         $resp = curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+        if (PHP_VERSION_ID < 80000) {
+            curl_close($ch);
+        }
+        unset($ch);
         return ['code' => $code, 'body' => $resp !== false ? $resp : ''];
     }
 
@@ -143,7 +146,10 @@ function apolloHttpParallel($requests, $timeout = 4) {
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $results[$key] = ['code' => $code, 'body' => $body !== false ? $body : ''];
         curl_multi_remove_handle($mh, $ch);
-        curl_close($ch);
+        if (PHP_VERSION_ID < 80000) {
+            curl_close($ch);
+        }
+        unset($ch);
     }
     curl_multi_close($mh);
 

@@ -8,6 +8,11 @@
  * Kirim response JSON dengan status HTTP dan header CORS lengkap, lalu hentikan eksekusi
  */
 function jsonResponse($data, $status = 200) {
+    if (PHP_SAPI !== 'cli') {
+        while (ob_get_level() > 0) {
+            @ob_end_clean();
+        }
+    }
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     header('Access-Control-Allow-Origin: *');
