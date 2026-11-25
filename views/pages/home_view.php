@@ -52,6 +52,7 @@
         <button type="button" class="search-tab-btn" data-search-tab="albums">Albums</button>
         <button type="button" class="search-tab-btn" data-search-tab="artists">Artists</button>
         <button type="button" class="search-tab-btn" data-search-tab="playlists">Playlists</button>
+        <span class="search-tab-indicator" id="search-tab-indicator" aria-hidden="true"></span>
       </div>
 
       <!-- Section: Tracks / Search Results -->

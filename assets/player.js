@@ -101,6 +101,7 @@
     fsSourceLabel: document.getElementById('fs-source-label'),
     fsCoverWrap: document.getElementById('fs-cover-wrap'),
     fsCover: document.getElementById('fs-cover'),
+    fsCoverGlare: document.getElementById('fs-cover-glare'),
     fsTitle: document.getElementById('fs-title'),
     fsArtist: document.getElementById('fs-artist'),
     fsAlbum: document.getElementById('fs-album'),
@@ -128,6 +129,7 @@
     btnRecPrev: document.getElementById('btn-rec-prev'),
     btnRecNext: document.getElementById('btn-rec-next'),
     searchTabsBar: document.getElementById('search-tabs-bar'),
+    searchTabIndicator: document.getElementById('search-tab-indicator'),
     searchTracksPanel: document.getElementById('search-tracks-panel'),
     searchGridPanel: document.getElementById('search-grid-panel'),
     searchResultsGrid: document.getElementById('search-results-grid'),
@@ -1740,6 +1742,7 @@
       tr.innerHTML = `
         <td class="col-num">
           <span class="row-index">${numStr}</span>
+          <span class="row-eq-bars" aria-hidden="true"><i></i><i></i><i></i></span>
           <span class="material-symbols-outlined row-play-icon">play_arrow</span>
         </td>
         <td class="col-title">
@@ -2513,6 +2516,28 @@
     if (DOM.btnFollowArtist) {
       DOM.btnFollowArtist.addEventListener('click', () => triggerMicroAnim(DOM.btnFollowArtist, 'anim-pop-burst'));
     }
+
+    // 5. Cursor-tracked ambient spotlight on Explore Genre Tiles
+    document.querySelectorAll('.genre-tile').forEach(tile => {
+      tile.addEventListener('pointermove', (e) => {
+        const rect = tile.getBoundingClientRect();
+        tile.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+        tile.style.setProperty('--my', `${e.clientY - rect.top}px`);
+      }, { passive: true });
+    });
+
+    window.addEventListener('resize', () => updateSearchTabIndicator());
+  }
+
+  /**
+   * Gliding Morphing Ink Bar Indicator on Search Category Tabs
+   */
+  function updateSearchTabIndicator() {
+    if (!DOM.searchTabsBar || !DOM.searchTabIndicator || DOM.searchTabsBar.style.display === 'none') return;
+    const activeBtn = DOM.searchTabsBar.querySelector('.search-tab-btn.active');
+    if (!activeBtn) return;
+    DOM.searchTabIndicator.style.width = `${activeBtn.offsetWidth}px`;
+    DOM.searchTabIndicator.style.transform = `translate3d(${activeBtn.offsetLeft}px, 0, 0)`;
   }
 
   /**
@@ -2549,7 +2574,9 @@
         }
       };
       DOM.fsCover.src = primaryThumb;
-      triggerMicroAnim(DOM.fsCoverWrap, 'anim-pop-burst');
+      if (state.isFullscreenOpen) {
+        triggerMicroAnim(DOM.fsCoverWrap, 'fs-cover-morph');
+      }
     }
 
     syncFullscreenPlaybackState();
@@ -2602,21 +2629,68 @@
       state.currentTrack = activeSong;
       syncFullscreenTrackInfo(activeSong);
     }
+
+    // Measure source thumbnail rect for seamless Shared-Element FLIP Morph
+    const srcEl = DOM.nowThumb ? DOM.nowThumb.closest('.now-thumb-wrap') : null;
+    const srcRect = srcEl ? srcEl.getBoundingClientRect() : null;
+
     state.isFullscreenOpen = true;
     DOM.fullscreenPlayer.classList.add('open');
     DOM.fullscreenPlayer.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
     if (DOM.btnFullscreenOpen) DOM.btnFullscreenOpen.classList.add('active');
     syncFullscreenPlaybackState();
+
+    // Execute GPU FLIP fly-in morph from bottom-left player cover straight to center stage
+    if (srcRect && DOM.fsCoverWrap && typeof DOM.fsCoverWrap.animate === 'function') {
+      const dstRect = DOM.fsCoverWrap.getBoundingClientRect();
+      if (dstRect.width > 0 && dstRect.height > 0) {
+        const dx = (srcRect.left + srcRect.width / 2) - (dstRect.left + dstRect.width / 2);
+        const dy = (srcRect.top + srcRect.height / 2) - (dstRect.top + dstRect.height / 2);
+        const sx = srcRect.width / dstRect.width;
+        const sy = srcRect.height / dstRect.height;
+
+        DOM.fsCoverWrap.animate([
+          { transform: `translate3d(${dx}px, ${dy}px, 0) scale(${sx}, ${sy})`, borderRadius: '4px', opacity: 0.85 },
+          { transform: 'translate3d(0, 0, 0) scale(1, 1)', borderRadius: '0px', opacity: 1 }
+        ], {
+          duration: 520,
+          easing: 'cubic-bezier(0.16, 1, 0.3, 1)'
+        });
+      }
+    }
   }
 
   function closeFullscreenPlayer() {
-    if (!DOM.fullscreenPlayer) return;
+    if (!DOM.fullscreenPlayer || !state.isFullscreenOpen) return;
+
+    // Reverse Shared-Element FLIP fly-back into bottom-left player cover
+    const srcEl = DOM.nowThumb ? DOM.nowThumb.closest('.now-thumb-wrap') : null;
+    if (srcEl && DOM.fsCoverWrap && typeof DOM.fsCoverWrap.animate === 'function') {
+      const dstRect = DOM.fsCoverWrap.getBoundingClientRect();
+      const srcRect = srcEl.getBoundingClientRect();
+      if (dstRect.width > 0 && srcRect.width > 0) {
+        const dx = (srcRect.left + srcRect.width / 2) - (dstRect.left + dstRect.width / 2);
+        const dy = (srcRect.top + srcRect.height / 2) - (dstRect.top + dstRect.height / 2);
+        const sx = srcRect.width / dstRect.width;
+        const sy = srcRect.height / dstRect.height;
+
+        DOM.fsCoverWrap.animate([
+          { transform: 'translate3d(0, 0, 0) scale(1, 1)', opacity: 1 },
+          { transform: `translate3d(${dx}px, ${dy}px, 0) scale(${sx}, ${sy})`, opacity: 0.4 }
+        ], {
+          duration: 360,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)'
+        });
+      }
+    }
+
     state.isFullscreenOpen = false;
     DOM.fullscreenPlayer.classList.remove('open');
     DOM.fullscreenPlayer.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
     if (DOM.btnFullscreenOpen) DOM.btnFullscreenOpen.classList.remove('active');
+    if (DOM.fsCoverWrap) DOM.fsCoverWrap.style.transform = '';
     if (document.fullscreenElement && document.exitFullscreen) {
       document.exitFullscreen().catch(() => {});
     }
@@ -2744,6 +2818,27 @@
       });
     }
 
+    // Interactive 3D Perspective Tilt + Specular Light Glint on Centered Album Cover
+    if (DOM.fsCoverWrap) {
+      DOM.fsCoverWrap.addEventListener('pointermove', (e) => {
+        if (!state.isFullscreenOpen) return;
+        const rect = DOM.fsCoverWrap.getBoundingClientRect();
+        const px = (e.clientX - rect.left) / rect.width;
+        const py = (e.clientY - rect.top) / rect.height;
+        const rotY = (px - 0.5) * 14;
+        const rotX = (0.5 - py) * 14;
+        DOM.fsCoverWrap.style.transform = `perspective(950px) rotateX(${rotX.toFixed(2)}deg) rotateY(${rotY.toFixed(2)}deg) scale(1.03)`;
+        if (DOM.fsCoverGlare) {
+          DOM.fsCoverGlare.style.setProperty('--gx', `${Math.round(px * 100)}%`);
+          DOM.fsCoverGlare.style.setProperty('--gy', `${Math.round(py * 100)}%`);
+        }
+      }, { passive: true });
+
+      DOM.fsCoverWrap.addEventListener('pointerleave', () => {
+        DOM.fsCoverWrap.style.transform = '';
+      });
+    }
+
     // Shortcut "F" to toggle Fullscreen Ambient Mode when not typing
     document.addEventListener('keydown', (e) => {
       if (e.key === 'f' || e.key === 'F') {
@@ -2757,6 +2852,7 @@
   }
 
   function updatePlayPauseButton() {
+    document.body.classList.toggle('apollo-playing', Boolean(state.isPlaying));
     if (state.isPlaying) {
       DOM.playPauseIcon.textContent = 'pause';
       DOM.playPauseBtn.title = 'Pause';
@@ -3569,6 +3665,7 @@
       document.querySelectorAll('#search-tabs-bar .search-tab-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.searchTab === state.activeSearchTab);
       });
+      requestAnimationFrame(() => updateSearchTabIndicator());
     }
 
     await loadSearchTabData(query, state.activeSearchTab);
@@ -3580,6 +3677,7 @@
     document.querySelectorAll('#search-tabs-bar .search-tab-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.searchTab === tabName);
     });
+    updateSearchTabIndicator();
     await loadSearchTabData(state.currentSearchQuery, tabName);
   }
 
@@ -4198,6 +4296,7 @@
       tr.innerHTML = `
         <td class="col-num">
           <span class="row-index">${numStr}</span>
+          <span class="row-eq-bars" aria-hidden="true"><i></i><i></i><i></i></span>
           <span class="material-symbols-outlined row-play-icon">play_arrow</span>
         </td>
         <td class="col-title">
@@ -4269,6 +4368,7 @@
       tr.innerHTML = `
         <td class="col-num">
           <span class="row-index">${numStr}</span>
+          <span class="row-eq-bars" aria-hidden="true"><i></i><i></i><i></i></span>
           <span class="material-symbols-outlined row-play-icon">play_arrow</span>
         </td>
         <td class="col-title">

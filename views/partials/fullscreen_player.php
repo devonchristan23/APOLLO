@@ -36,6 +36,7 @@
           src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23181818'/%3E%3Ccircle cx='100' cy='100' r='55' fill='none' stroke='%23383838' stroke-width='4'/%3E%3Ccircle cx='100' cy='100' r='14' fill='%23FF4F00'/%3E%3C/svg%3E"
           alt="Now Playing Cover"
         >
+        <div class="fs-cover-glare" id="fs-cover-glare" aria-hidden="true"></div>
       </div>
 
       <div class="fs-track-meta">
