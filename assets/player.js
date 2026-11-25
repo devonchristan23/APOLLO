@@ -222,6 +222,7 @@
     setupAudioListeners();
     setupUIListeners();
     setupSidebarResizeAndChips();
+    setupClickAnimations();
     setupMediaSession();
 
     // Load Playlists & Live YouTube Music Recommendations in parallel
@@ -2394,13 +2395,102 @@
   /**
    * UI Updates
    */
+  /**
+   * Tactile Click Animations, Internal Element Ripples & Transport Micro-Motion
+   */
+  function triggerMicroAnim(el, className) {
+    if (!el) return;
+    el.classList.remove(className);
+    void el.offsetWidth;
+    el.classList.add(className);
+    el.addEventListener('animationend', () => el.classList.remove(className), { once: true });
+  }
+
+  function setupClickAnimations() {
+    const RIPPLE_SELECTOR = [
+      '.btn-play-pause', '.btn-play-all', '.album-play-btn',
+      '.btn-header-auth', '.btn-header-logout', '.btn-header-refresh',
+      '.btn-search-refresh', '.btn-sidebar-create', '.btn-library-create',
+      '.btn-refresh-community', '.btn-secondary-action', '.btn-delete-playlist',
+      '.btn-card-follow', '.btn-popover-like', '.btn-popover-create',
+      '.btn-add-popover', '.btn-back-overview', '.sidebar-chip',
+      '.search-tab-btn', '.nav-item', '.sidebar-lib-item', '.genre-tile'
+    ].join(',');
+
+    document.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      if (e.target && e.target.id === 'sidebar-resize-handle') return;
+
+      // 1. Global acoustic signal pulse at pointer position
+      const pulse = document.createElement('span');
+      pulse.className = 'apollo-click-pulse';
+      pulse.style.left = `${e.clientX}px`;
+      pulse.style.top = `${e.clientY}px`;
+      document.body.appendChild(pulse);
+      setTimeout(() => pulse.remove(), 480);
+
+      // 2. Internal ripple wave on interactive buttons, chips, tabs, & genre tiles
+      const host = e.target.closest ? e.target.closest(RIPPLE_SELECTOR) : null;
+      if (host) {
+        host.classList.add('apollo-ripple-host');
+        const rect = host.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height, 44);
+        const wave = document.createElement('span');
+        wave.className = 'apollo-ripple-wave';
+        wave.style.width = `${size}px`;
+        wave.style.height = `${size}px`;
+        wave.style.left = `${e.clientX - rect.left - size / 2}px`;
+        wave.style.top = `${e.clientY - rect.top - size / 2}px`;
+        host.appendChild(wave);
+        setTimeout(() => wave.remove(), 560);
+      }
+
+      // 3. Track row flash sweep when clicking a song row
+      const row = e.target.closest ? e.target.closest('.tracks-table tbody tr') : null;
+      if (row && !row.classList.contains('tracks-divider-row') && !e.target.closest('.btn-add-popover')) {
+        triggerMicroAnim(row, 'row-click-flash');
+      }
+    }, { passive: true });
+
+    // 4. Directional micro-motion on transport buttons & seek/volume bars
+    if (DOM.playPauseBtn) {
+      DOM.playPauseBtn.addEventListener('click', () => triggerMicroAnim(DOM.playPauseBtn, 'anim-pop-burst'));
+    }
+    if (DOM.nextBtn) {
+      DOM.nextBtn.addEventListener('click', () => triggerMicroAnim(DOM.nextBtn, 'anim-kick-right'));
+    }
+    if (DOM.prevBtn) {
+      DOM.prevBtn.addEventListener('click', () => triggerMicroAnim(DOM.prevBtn, 'anim-kick-left'));
+    }
+    if (DOM.repeatBtn) {
+      DOM.repeatBtn.addEventListener('click', () => triggerMicroAnim(DOM.repeatBtn, 'anim-spin-half'));
+    }
+    if (DOM.shuffleBtn) {
+      DOM.shuffleBtn.addEventListener('click', () => triggerMicroAnim(DOM.shuffleBtn, 'anim-pop-burst'));
+    }
+    if (DOM.seekBar) {
+      DOM.seekBar.addEventListener('click', () => {
+        DOM.seekBar.classList.add('is-seeking');
+        setTimeout(() => DOM.seekBar.classList.remove('is-seeking'), 380);
+      });
+    }
+    if (DOM.popoverLikeBtn) {
+      DOM.popoverLikeBtn.addEventListener('click', () => triggerMicroAnim(DOM.popoverLikeBtn, 'anim-pop-burst'));
+    }
+    if (DOM.btnFollowArtist) {
+      DOM.btnFollowArtist.addEventListener('click', () => triggerMicroAnim(DOM.btnFollowArtist, 'anim-pop-burst'));
+    }
+  }
+
   function updatePlayPauseButton() {
     if (state.isPlaying) {
       DOM.playPauseIcon.textContent = 'pause';
       DOM.playPauseBtn.title = 'Pause';
+      DOM.playPauseBtn.classList.add('is-playing');
     } else {
       DOM.playPauseIcon.textContent = 'play_arrow';
       DOM.playPauseBtn.title = 'Play';
+      DOM.playPauseBtn.classList.remove('is-playing');
     }
   }
 
@@ -3128,14 +3218,14 @@
     if (delta < 0) {
       if (state.recOffset <= 0) return;
       state.recOffset = Math.max(0, state.recOffset - 4);
-      renderRecommendedAlbums(liveRecommendedAlbums);
+      renderRecommendedAlbums(liveRecommendedAlbums, 'prev');
       return;
     }
 
     // Moving Right (+4)
     if (state.recOffset + 4 < liveRecommendedAlbums.length) {
       state.recOffset += 4;
-      renderRecommendedAlbums(liveRecommendedAlbums);
+      renderRecommendedAlbums(liveRecommendedAlbums, 'next');
       return;
     }
 
@@ -3163,7 +3253,7 @@
     } finally {
       state.isLoadingMoreRecs = false;
       if (DOM.btnRecNext) DOM.btnRecNext.classList.remove('is-spinning');
-      renderRecommendedAlbums(liveRecommendedAlbums);
+      renderRecommendedAlbums(liveRecommendedAlbums, 'next');
     }
   }
 
@@ -3500,10 +3590,21 @@
    */
   function switchView(viewName) {
     state.currentView = viewName;
-    if (DOM.viewOverview) DOM.viewOverview.style.display = (viewName === 'overview') ? 'block' : 'none';
-    if (DOM.viewExplore) DOM.viewExplore.style.display = (viewName === 'explore') ? 'flex' : 'none';
-    if (DOM.viewLibrary) DOM.viewLibrary.style.display = (viewName === 'library') ? 'flex' : 'none';
-    if (DOM.viewArtist) DOM.viewArtist.style.display = (viewName === 'artist') ? 'flex' : 'none';
+    const viewMap = {
+      overview: [DOM.viewOverview, 'block'],
+      explore:  [DOM.viewExplore, 'flex'],
+      library:  [DOM.viewLibrary, 'flex'],
+      artist:   [DOM.viewArtist, 'flex']
+    };
+    Object.entries(viewMap).forEach(([key, [el, disp]]) => {
+      if (!el) return;
+      if (key === viewName) {
+        el.style.display = disp;
+        triggerMicroAnim(el, 'apollo-view-enter');
+      } else {
+        el.style.display = 'none';
+      }
+    });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -3662,12 +3763,17 @@
     renderQueueDrawer();
   }
 
-  function renderRecommendedAlbums(albums = []) {
+  function renderRecommendedAlbums(albums = [], slideDir = null) {
     if (!DOM.albumsGrid) return;
     if (DOM.overviewAlbumsTitle) DOM.overviewAlbumsTitle.textContent = 'RECOMMENDED SONGS · YOUTUBE MUSIC';
     if (DOM.overviewAlbumsMeta) DOM.overviewAlbumsMeta.textContent = 'INDIVIDUAL TRACKS · USE < > TO BROWSE';
 
     DOM.albumsGrid.innerHTML = '';
+    DOM.albumsGrid.classList.remove('rec-slide-next', 'rec-slide-prev');
+    if (slideDir === 'next' || slideDir === 'prev') {
+      void DOM.albumsGrid.offsetWidth;
+      DOM.albumsGrid.classList.add(slideDir === 'next' ? 'rec-slide-next' : 'rec-slide-prev');
+    }
 
     if (DOM.btnRecPrev) {
       DOM.btnRecPrev.disabled = (state.recOffset <= 0);
