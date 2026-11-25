@@ -9,8 +9,9 @@ require_once __DIR__ . '/../services/artist_service.php';
 
 apolloCloseSessionWrite();
 
-$name = trim($_GET['name'] ?? 'Queen');
-$dossier = apolloBuildArtistDossier($name);
+$name     = trim($_GET['name'] ?? 'Queen');
+$browseId = trim($_GET['browse_id'] ?? '');
+$dossier  = apolloBuildArtistDossier($name, $browseId);
 
 jsonResponse([
     'status'       => 'ok',

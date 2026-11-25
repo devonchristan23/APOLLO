@@ -826,7 +826,7 @@
         `;
         a.addEventListener('click', (e) => {
           e.preventDefault();
-          openArtistView(art.name);
+          openArtistView(art.name, art.browse_id || '');
         });
       }
 
@@ -1589,7 +1589,7 @@
             toggleFollowArtist(art);
           });
         }
-        card.addEventListener('click', () => openArtistView(art.name));
+        card.addEventListener('click', () => openArtistView(art.name, art.browse_id || ''));
         DOM.libraryGrid.appendChild(card);
       });
     }
@@ -3426,7 +3426,7 @@
         toggleFollowArtist(art);
       });
     }
-    card.addEventListener('click', () => openArtistView(art.name));
+    card.addEventListener('click', () => openArtistView(art.name, art.browse_id || ''));
     return card;
   }
 
@@ -3522,10 +3522,10 @@
   /**
    * Open Artist Dossier: Shows Artist Hero + Follow Button + Official Albums + Top Songs + Matching Artists
    */
-  async function openArtistView(artistName) {
+  async function openArtistView(artistName, browseId = '') {
     if (!artistName) return;
     switchView('artist');
-    state.activeArtistData = { name: artistName, photo: '', subtitle: 'Artist', browse_id: '' };
+    state.activeArtistData = { name: artistName, photo: '', subtitle: 'Artist', browse_id: browseId || '' };
 
     DOM.artistName.textContent = artistName.toUpperCase();
     DOM.artistLocation.textContent = 'FETCHING ARTIST ALBUMS & TRACKS...';
@@ -3547,7 +3547,8 @@
     syncFollowUI();
 
     try {
-      const res = await fetch(`api/artist.php?name=${encodeURIComponent(artistName)}`);
+      const url = `api/artist.php?name=${encodeURIComponent(artistName)}${browseId ? `&browse_id=${encodeURIComponent(browseId)}` : ''}`;
+      const res = await fetch(url);
       const data = await res.json();
 
       if (data.status === 'ok' && data.artist) {

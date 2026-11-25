@@ -290,6 +290,8 @@ function apolloParseYtmAlbumsFromBody($body, $limit = 16) {
 
             $browseId = $r['navigationEndpoint']['browseEndpoint']['browseId'] ?? '';
             if ($browseId === '' || isset($seen[$browseId])) continue;
+            // Pastikan hanya rilis musik resmi (MPREb_ / OLAK5uy_), bukan podcast/show
+            if (strpos($browseId, 'MPREb_') !== 0 && strpos($browseId, 'OLAK5uy_') !== 0) continue;
 
             $title = '';
             foreach (($r['flexColumns'][0]['musicResponsiveListItemFlexColumnRenderer']['text']['runs'] ?? []) as $tr) {
@@ -314,6 +316,11 @@ function apolloParseYtmAlbumsFromBody($body, $limit = 16) {
             $releaseType = $segments[0] ?? 'Album';
             $artist      = $segments[1] ?? 'Various Artists';
             $year        = $segments[2] ?? '';
+
+            // Buang konten podcast / wawancara / talkshow yang menyamar jadi rilis audio
+            if (preg_match('/\b(podcast|wawancanda|interview|wawancara|talk\s*show|audiobook|episode\s*\d+|obrolan|ceramah|kajian)\b/i', $title . ' ' . $artist . ' ' . $releaseType)) {
+                continue;
+            }
 
             $thumbs = $r['thumbnail']['musicThumbnailRenderer']['thumbnail']['thumbnails'] ?? [];
             $lastT = (!empty($thumbs) && is_array($thumbs)) ? end($thumbs) : null;
