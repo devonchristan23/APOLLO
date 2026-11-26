@@ -2468,6 +2468,9 @@
       // 2. Internal ripple wave on interactive buttons, chips, tabs, & genre tiles
       const host = e.target.closest ? e.target.closest(RIPPLE_SELECTOR) : null;
       if (host) {
+        if (window.getComputedStyle(host).position === 'static') {
+          host.style.position = 'relative';
+        }
         host.classList.add('apollo-ripple-host');
         const rect = host.getBoundingClientRect();
         const size = Math.max(rect.width, rect.height, 44);
@@ -4275,7 +4278,7 @@
         const divTr = document.createElement('tr');
         divTr.className = 'tracks-divider-row';
         divTr.innerHTML = `
-          <td colspan="5">YOUTUBE · VIDEO DARI YOUTUBE</td>
+          <td colspan="5">YOUTUBE · VIDEOS FROM YOUTUBE</td>
         `;
         DOM.tracksTableBody.appendChild(divTr);
       }
@@ -4307,7 +4310,7 @@
                 <span class="track-title-text">${escapeHtml(track.title)}</span>
                 ${sourceBadgeHtml}
               </div>
-              <span class="track-artist-sublink" title="Lihat artis & album ${escapeHtml(track.artist)}">${escapeHtml(track.artist)}</span>
+              <span class="track-artist-sublink" title="View ${escapeHtml(track.artist)} albums & profile">${escapeHtml(track.artist)}</span>
             </div>
           </div>
         </td>

@@ -2786,9 +2786,8 @@ body.sidebar-resizing {
   }
 }
 
-/* 2. Internal Element Ripple Flash (clipped cleanly inside buttons/tiles) */
+/* 2. Internal Element Ripple Flash (clipped cleanly inside buttons/tiles without overriding absolute position) */
 .apollo-ripple-host {
-  position: relative;
   overflow: hidden;
 }
 

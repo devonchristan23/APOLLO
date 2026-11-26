@@ -15,7 +15,7 @@
             >
             <span class="search-esc-hint">[ESC] CLEAR</span>
           </div>
-          <button type="button" class="btn-search-refresh" id="btn-refresh-page" title="Refresh halaman ini">
+          <button type="button" class="btn-search-refresh" id="btn-refresh-page" title="Refresh current page">
             <span class="material-symbols-outlined" style="font-size: 19px;">refresh</span>
           </button>
         </div>
